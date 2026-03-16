@@ -94,6 +94,68 @@ class Resource<out A> @PublishedApi internal constructor(
                 }
             }
         }
+
+        /** Combines five resources. */
+        fun <A, B, C, D, E, F> zip(
+            ra: Resource<A>,
+            rb: Resource<B>,
+            rc: Resource<C>,
+            rd: Resource<D>,
+            re: Resource<E>,
+            f: (A, B, C, D, E) -> F,
+        ): Resource<F> = Resource { use ->
+            ra.bind { a -> rb.bind { b -> rc.bind { c ->
+                rd.bind { d -> re.bind { e -> use(f(a, b, c, d, e)) } } } } }
+        }
+
+        /** Combines six resources. */
+        fun <A, B, C, D, E, F, G> zip(
+            ra: Resource<A>,
+            rb: Resource<B>,
+            rc: Resource<C>,
+            rd: Resource<D>,
+            re: Resource<E>,
+            rf: Resource<F>,
+            f: (A, B, C, D, E, F) -> G,
+        ): Resource<G> = Resource { use ->
+            ra.bind { a -> rb.bind { b -> rc.bind { c ->
+                rd.bind { d -> re.bind { e -> rf.bind { ff ->
+                    use(f(a, b, c, d, e, ff)) } } } } } }
+        }
+
+        /** Combines seven resources. */
+        fun <A, B, C, D, E, F, G, H> zip(
+            ra: Resource<A>,
+            rb: Resource<B>,
+            rc: Resource<C>,
+            rd: Resource<D>,
+            re: Resource<E>,
+            rf: Resource<F>,
+            rg: Resource<G>,
+            f: (A, B, C, D, E, F, G) -> H,
+        ): Resource<H> = Resource { use ->
+            ra.bind { a -> rb.bind { b -> rc.bind { c ->
+                rd.bind { d -> re.bind { e -> rf.bind { ff ->
+                    rg.bind { g -> use(f(a, b, c, d, e, ff, g)) } } } } } } }
+        }
+
+        /** Combines eight resources. */
+        fun <A, B, C, D, E, F, G, H, I> zip(
+            ra: Resource<A>,
+            rb: Resource<B>,
+            rc: Resource<C>,
+            rd: Resource<D>,
+            re: Resource<E>,
+            rf: Resource<F>,
+            rg: Resource<G>,
+            rh: Resource<H>,
+            f: (A, B, C, D, E, F, G, H) -> I,
+        ): Resource<I> = Resource { use ->
+            ra.bind { a -> rb.bind { b -> rc.bind { c ->
+                rd.bind { d -> re.bind { e -> rf.bind { ff ->
+                    rg.bind { g -> rh.bind { h ->
+                        use(f(a, b, c, d, e, ff, g, h)) } } } } } } } }
+        }
     }
 
     /** Transforms the resource value. Release still applies to the original. */

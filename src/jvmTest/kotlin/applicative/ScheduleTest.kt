@@ -319,6 +319,48 @@ class ScheduleTest {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // withMaxDuration
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `withMaxDuration stops retrying after total elapsed time`() = runTest {
+        var attempts = 0
+        val policy = Schedule.spaced<Throwable>(100.milliseconds)
+            .withMaxDuration(350.milliseconds)
+
+        val result = runCatching {
+            Async {
+                Computation<String> {
+                    attempts++
+                    throw RuntimeException("fail")
+                }.retry(policy)
+            }
+        }
+        assertTrue(result.isFailure)
+        // With 100ms spacing and 350ms max: attempts at t=0, t=100, t=200, t=300, then t=400 would exceed
+        assertTrue(attempts >= 3, "Should attempt at least 3 times within 350ms")
+    }
+
+    @Test
+    fun `withMaxDuration composes with exponential`() = runTest {
+        var attempts = 0
+        val policy = Schedule.exponential<Throwable>(100.milliseconds)
+            .withMaxDuration(500.milliseconds)
+
+        val result = runCatching {
+            Async {
+                Computation<String> {
+                    attempts++
+                    throw RuntimeException("fail")
+                }.retry(policy)
+            }
+        }
+        assertTrue(result.isFailure)
+        // Delays: 100ms (t=100), 200ms (t=300), 400ms would push to t=700 > 500 → Done
+        assertTrue(attempts <= 4, "Should stop before delay would exceed max duration")
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Integration: composing multiple policies
     // ════════════════════════════════════════════════════════════════════════
 

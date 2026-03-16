@@ -3,6 +3,8 @@ package applicative
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * A composable retry policy that decides whether to continue and how long to wait.
@@ -113,6 +115,41 @@ class Schedule<A>(
                 is Decision.Continue -> {
                     val jitter = 1.0 - factor + random.nextDouble() * factor * 2.0
                     Decision.Continue(d.delay * jitter)
+                }
+                is Decision.Done -> Decision.Done
+            }
+        }
+    }
+
+    /**
+     * Limits the total time across all retries. Once the elapsed time since
+     * the first [decide] call exceeds [maxDuration], the schedule stops.
+     *
+     * If the next delay would push the total past [maxDuration], the schedule
+     * returns [Decision.Done] instead of overshooting.
+     *
+     * **Note:** This creates a stateful schedule — each instance tracks its own
+     * start time. Create a new instance for each retry invocation if reuse is needed.
+     *
+     * ```
+     * val policy = Schedule.exponential<Throwable>(100.milliseconds)
+     *     .withMaxDuration(5.seconds)
+     * // Stops retrying after 5 seconds total, regardless of attempt count.
+     * ```
+     */
+    fun withMaxDuration(
+        maxDuration: Duration,
+        timeSource: TimeSource = TimeSource.Monotonic,
+    ): Schedule<A> {
+        var startMark: TimeMark? = null
+        return Schedule { attempt, a ->
+            val mark = startMark ?: timeSource.markNow().also { startMark = it }
+            val elapsed = mark.elapsedNow()
+            if (elapsed >= maxDuration) Decision.Done
+            else when (val d = this@Schedule.decide(attempt, a)) {
+                is Decision.Continue -> {
+                    val remaining = maxDuration - elapsed
+                    if (d.delay > remaining) Decision.Done else d
                 }
                 is Decision.Done -> Decision.Done
             }

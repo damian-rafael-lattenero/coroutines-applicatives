@@ -1,8 +1,11 @@
 package applicative
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -260,5 +263,97 @@ class CombinatorsTest {
             Computation<String?> { delay(10.seconds); null }.timeout(100.milliseconds, default = "timed-out")
         }
         assertEquals("timed-out", result)
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // RETRY OR ELSE
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `retryOrElse returns fallback when retries exhausted`() = runTest {
+        val result = Async {
+            Computation<String> { throw RuntimeException("fail") }
+                .retryOrElse(Schedule.recurs(2)) { "fallback:${it.message}" }
+        }
+        assertEquals("fallback:fail", result)
+    }
+
+    @Test
+    fun `retryOrElse returns success when retry succeeds`() = runTest {
+        var attempts = 0
+        val result = Async {
+            Computation {
+                attempts++
+                if (attempts < 3) throw RuntimeException("fail")
+                "ok"
+            }.retryOrElse(Schedule.recurs(5)) { "fallback" }
+        }
+        assertEquals("ok", result)
+        assertEquals(3, attempts)
+    }
+
+    @Test
+    fun `retryOrElse does not catch CancellationException`() = runTest {
+        val result = runCatching {
+            Async {
+                Computation<String> { throw CancellationException("cancelled") }
+                    .retryOrElse(Schedule.recurs(3)) { "fallback" }
+            }
+        }
+        assertTrue(result.isFailure)
+        assertIs<CancellationException>(result.exceptionOrNull())
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // MEMOIZE
+    // ════════════════════════════════════════════════════════════════════════
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `memoize runs computation only once across multiple executions`() = runTest {
+        val counter = AtomicInteger(0)
+        val expensive = Computation { counter.incrementAndGet(); "result" }.memoize()
+
+        val result1 = Async { expensive }
+        val result2 = Async { expensive }
+
+        assertEquals("result", result1)
+        assertEquals("result", result2)
+        assertEquals(1, counter.get(), "Computation should execute only once")
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `memoize shares result across parallel ap branches`() = runTest {
+        val counter = AtomicInteger(0)
+        val expensive = Computation {
+            delay(50)
+            counter.incrementAndGet()
+            "data"
+        }.memoize()
+
+        val result = Async {
+            lift2 { a: String, b: String -> "$a|$b" }
+                .ap(expensive)
+                .ap(expensive)
+        }
+
+        assertEquals("data|data", result)
+        assertEquals(1, counter.get(), "Memoized computation should run once even in parallel")
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `memoize propagates exception to all waiters`() = runTest {
+        val counter = AtomicInteger(0)
+        val failing = Computation<String> {
+            counter.incrementAndGet()
+            throw RuntimeException("boom")
+        }.memoize()
+
+        val result = runCatching { Async { failing } }
+        assertTrue(result.isFailure)
+        assertEquals("boom", result.exceptionOrNull()?.message)
+        assertEquals(1, counter.get(), "Should only execute once even on failure")
     }
 }

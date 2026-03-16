@@ -1,37 +1,68 @@
 # Coroutines Applicatives
 
-**Your code shape *is* the execution plan.** Declarative coroutine orchestration for Kotlin — parallel by default, sequential by intent.
+**Type-safe parallel coroutine composition — your code shape *is* the execution plan.**
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
 [![Coroutines](https://img.shields.io/badge/Coroutines-1.9.0-blue.svg)](https://github.com/Kotlin/kotlinx.coroutines)
-[![Tests](https://img.shields.io/badge/Tests-446%20passing-brightgreen.svg)](#empirical-data)
+[![Tests](https://img.shields.io/badge/Tests-457%20passing-brightgreen.svg)](#empirical-data)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Multiplatform](https://img.shields.io/badge/Multiplatform-JVM%20%7C%20JS%20%7C%20Native-orange.svg)](#)
 
-> **Type-safe, zero-overhead parallel composition for Kotlin coroutines.**
-> - Compile-time parameter ordering via curried types — swap two `.ap` lines and the compiler rejects it
-> - True phase barriers (`followedBy`) make execution phases visible in code shape
-> - Parallel error accumulation (`zipV`) collects *every* failure, not just the first
+> **Zero-overhead declarative orchestration for Kotlin coroutines.**
+> - `.ap` = parallel. `.followedBy` = barrier. That's the whole model.
+> - Swap two `.ap` lines → **compiler error** (curried types enforce parameter order)
+> - `zipV` runs all validators in parallel and collects **every** error
 > - One dependency (`kotlinx-coroutines-core`), ~2,100 lines, all platforms
 
 ```kotlin
-val checkout = Async {
+// 11 service calls. 5 phases. 12 lines. Zero overhead vs raw coroutines.
+val checkout: CheckoutResult = Async {
     lift11(::CheckoutResult)
         .ap { fetchUser(userId) }          // ┐
-        .ap { fetchCart(userId) }           // ├─ phase 1: parallel
+        .ap { fetchCart(userId) }           // ├─ phase 1: 4 calls, parallel
         .ap { fetchPromos(userId) }         // │
         .ap { fetchInventory(userId) }      // ┘
-        .followedBy { validateStock() }     // ── phase 2: barrier
+        .followedBy { validateStock() }     // ── phase 2: barrier (waits for phase 1)
         .ap { calcShipping() }             // ┐
-        .ap { calcTax() }                  // ├─ phase 3: parallel
+        .ap { calcTax() }                  // ├─ phase 3: 3 calls, parallel
         .ap { calcDiscounts() }            // ┘
         .followedBy { reservePayment() }   // ── phase 4: barrier
-        .ap { generateConfirmation() }     // ┐ phase 5: parallel
+        .ap { generateConfirmation() }     // ┐ phase 5: 2 calls, parallel
         .ap { sendReceiptEmail() }         // ┘
+}
+// Verified: 130ms virtual time (vs 460ms sequential). See ConcurrencyProofTest.kt
+```
+
+**Swap any two `.ap` lines and the compiler rejects it.** Each service returns a distinct type — the curried type chain locks the order at compile time.
+
+---
+
+## Quick Start
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("org.applicative.coroutines:coroutines-applicatives:1.0.0")
 }
 ```
 
-**11 service calls. 5 phases. 12 lines. Swap any two `.ap` lines and the compiler rejects it.**
+```kotlin
+import applicative.*
+
+data class Dashboard(val user: String, val cart: String, val promos: String)
+
+suspend fun main() {
+    val result = Async {
+        lift3(::Dashboard)
+            .ap { fetchUser() }    // all three run in parallel
+            .ap { fetchCart() }    // total time = max(individual times)
+            .ap { fetchPromos() }  // not sum
+    }
+    println(result) // Dashboard(user=Alice, cart=3 items, promos=SAVE20)
+}
+```
+
+Only dependency: `kotlinx-coroutines-core`. That's it.
 
 ---
 
@@ -45,6 +76,8 @@ val checkout = Async {
 | Retry + exponential + jitter | `Schedule` composition | 3 lines |
 | Resource safety in parallel | `bracket` / `Resource` | Guaranteed cleanup |
 | First-to-succeed racing | `raceN(...)` | Losers auto-cancelled |
+| Cache expensive computation | `.memoize()` | Execute once, share result |
+| Retry with fallback | `.retryOrElse(schedule) { }` | No throw on exhaustion |
 
 ---
 
@@ -66,86 +99,13 @@ val checkout = Async {
 
 ---
 
-## Install
-
-```kotlin
-// build.gradle.kts
-dependencies {
-    implementation("org.applicative.coroutines:coroutines-applicatives:1.0.0")
-}
-```
-
-Only dependency: `kotlinx-coroutines-core`. ~2,100 lines total.
-
----
-
-## Why This Exists
-
-A typical BFF endpoint aggregates 10-15 microservices. Here's the same checkout flow with raw coroutines:
-
-```kotlin
-// Raw coroutines: 30+ lines, 11 shuttle variables, invisible phase boundaries
-val checkout = coroutineScope {
-    val dUser      = async { fetchUser(userId) }
-    val dCart      = async { fetchCart(userId) }
-    val dPromos    = async { fetchPromos(userId) }
-    val dInventory = async { fetchInventory(userId) }
-    val user      = dUser.await()
-    val cart       = dCart.await()
-    val promos     = dPromos.await()
-    val inventory  = dInventory.await()
-
-    val stock = validateStock(inventory)       // barrier -- invisible without comments
-
-    val dShipping  = async { calcShipping(cart) }
-    val dTax       = async { calcTax(cart) }
-    val dDiscounts = async { calcDiscounts(promos) }
-    val shipping  = dShipping.await()
-    val tax        = dTax.await()
-    val discounts  = dDiscounts.await()
-
-    val payment = reservePayment(user, cart)   // barrier -- also invisible
-
-    val dConfirmation = async { generateConfirmation(payment) }
-    val dEmail        = async { sendReceiptEmail(user) }
-
-    CheckoutResult(user, cart, promos, inventory, stock,
-                   shipping, tax, discounts, payment,
-                   dConfirmation.await(), dEmail.await())
-}
-```
-
-Move one `await()` above its `async` and you silently serialize. The compiler won't say a word.
-
-**This library reduces that to a flat, type-safe chain where the structure *is* the execution plan.**
-
----
-
-## The Model: Two Primitives
-
-| Combinator | Semantics | Mental model |
-|---|---|---|
-| `.ap { }` | Launch in parallel | "and at the same time..." |
-| `.followedBy { }` | Wait, then continue | "then, once that's done..." |
-
-That's it. `ap` = parallel. `followedBy` = barrier. The code reads top-to-bottom as the execution timeline.
-
-Two more for advanced use:
-
-| Combinator | Semantics | When |
-|---|---|---|
-| `.flatMap { }` | Barrier + pass the value | Next phase *needs* the result |
-| `.thenValue { }` | Sequential fill, no barrier | Overlap for max performance |
-
----
-
 ## Empirical Data
 
 All claims backed by JMH benchmarks and deterministic virtual-time proofs. No flaky timing assertions — `runTest` + `currentTime` gives provably correct results.
 
-### JMH Results (`./gradlew :benchmarks:jmh`)
+### JMH Benchmarks (`./gradlew :benchmarks:jmh`)
 
-**Simple parallel (5 calls @ 50ms):**
+**Simple parallel (5 calls @ 50ms each):**
 
 | Approach | ms/op | vs Sequential |
 |---|---|---|
@@ -156,11 +116,11 @@ All claims backed by JMH benchmarks and deterministic virtual-time proofs. No fl
 
 **Framework overhead (trivial compute, no I/O):**
 
-| Approach | Arity 3 (ms) | Arity 9 (ms) |
+| Approach | Arity 3 | Arity 9 |
 |---|---|---|
-| Raw coroutines | 0.001 | 0.001 |
-| **This library** | **0.001** | **0.002** |
-| Arrow (`parZip`) | 0.008 | 0.023 |
+| Raw coroutines | 0.001ms | 0.001ms |
+| **This library** | **0.001ms** | **0.002ms** |
+| Arrow (`parZip`) | 0.008ms | 0.023ms |
 
 > **8x less overhead** than Arrow on trivial workloads. Negligible for real I/O.
 
@@ -175,7 +135,7 @@ All claims backed by JMH benchmarks and deterministic virtual-time proofs. No fl
 
 Same wall-clock time. Only this library keeps the code flat regardless of phase count.
 
-**Validation with error accumulation (4 validators @ 40ms):**
+**Parallel validation with error accumulation (4 validators @ 40ms):**
 
 | Approach | ms/op | Collects all errors? | Parallel? |
 |---|---|---|---|
@@ -186,7 +146,7 @@ Same wall-clock time. Only this library keeps the code flat regardless of phase 
 
 ### Virtual-Time Proofs
 
-Every concurrency property is verified with `runTest` + `currentTime` — deterministic, not flaky:
+Every concurrency property verified with `runTest` + `currentTime` — deterministic, not flaky:
 
 | Proof | Virtual time | Sequential | Speedup |
 |---|---|---|---|
@@ -194,13 +154,9 @@ Every concurrency property is verified with `runTest` + `currentTime` — determ
 | 10 parallel calls @ 30ms | **30ms** | 300ms | **10x** |
 | 14-call 5-phase BFF | **130ms** | 460ms | **3.5x** |
 | `followedBy` true barrier | **110ms** | — | C waits for barrier |
-| Post-barrier aps launch in parallel | **90ms** | — | All launch together |
-| `thenValue` no barrier | **80ms** | — | Overlaps |
 | Bounded traverse (9 items, concurrency=3) | **90ms** | 270ms | **3x** |
-| Zero overhead vs raw coroutines | **0ms delta** | — | Identical |
 | Mass cancellation (1 fail, 9 siblings) | — | — | All 9 cancelled |
-| `timeoutRace` vs `timeout`+fallback | **50ms** vs 150ms | — | **3x** faster |
-| `recoverV` inside `zipV` | **50ms** | — | No sibling cancellation |
+| `timeoutRace` vs `timeout`+fallback | **50ms** vs 150ms | — | **3x faster** |
 
 ### Algebraic Laws (property-based via Kotest)
 
@@ -213,62 +169,100 @@ Functor, applicative, and monad laws verified with random inputs:
 
 Source: [`ApplicativeLawsTest.kt`](src/jvmTest/kotlin/applicative/ApplicativeLawsTest.kt)
 
-**446 tests across 26 suites. All passing.**
+**457 tests across 26 suites. All passing.**
+
+---
+
+## Why This Exists
+
+The same 11-call checkout with raw coroutines:
+
+```kotlin
+// Raw coroutines: 30+ lines, 11 shuttle variables, invisible phase boundaries
+val checkout = coroutineScope {
+    val dUser      = async { fetchUser(userId) }
+    val dCart      = async { fetchCart(userId) }
+    val dPromos    = async { fetchPromos(userId) }
+    val dInventory = async { fetchInventory(userId) }
+    val user       = dUser.await()         // ─┐
+    val cart       = dCart.await()          //  │ 4 variables just to
+    val promos     = dPromos.await()        //  │ bridge async → await
+    val inventory  = dInventory.await()     // ─┘
+
+    val stock = validateStock(inventory)    // barrier — invisible without comments
+
+    val dShipping  = async { calcShipping(cart) }
+    val dTax       = async { calcTax(cart) }
+    val dDiscounts = async { calcDiscounts(promos) }
+    val shipping   = dShipping.await()
+    val tax        = dTax.await()
+    val discounts  = dDiscounts.await()
+
+    val payment = reservePayment(user, cart)  // barrier — also invisible
+
+    val dConfirmation = async { generateConfirmation(payment) }
+    val dEmail        = async { sendReceiptEmail(user) }
+
+    CheckoutResult(user, cart, promos, inventory, stock,
+                   shipping, tax, discounts, payment,
+                   dConfirmation.await(), dEmail.await())
+}
+```
+
+Move one `await()` above its `async` and you silently serialize. The compiler won't say a word.
+
+**This library reduces 30+ lines to 12, with compile-time safety and visible phase boundaries.**
+
+---
+
+## The Model: Two Primitives
+
+| Combinator | Semantics | Mental model |
+|---|---|---|
+| `.ap { }` | Launch in parallel | "and at the same time..." |
+| `.followedBy { }` | Wait, then gate | "then, once that's done..." |
+
+That's it. `ap` = parallel. `followedBy` = barrier. The code reads top-to-bottom as the execution timeline.
+
+Two more for advanced use:
+
+| Combinator | Semantics | When |
+|---|---|---|
+| `.flatMap { }` | Barrier + pass the value | Next phase *needs* the result |
+| `.thenValue { }` | Sequential fill, no barrier | Overlap for max performance |
 
 ---
 
 ## Hero Examples
 
-### 1. Multi-Phase Orchestration (11 Calls, 5 Phases)
-
-```kotlin
-val checkout = Async {
-    lift11(::CheckoutResult)
-        .ap { fetchUser(userId) }          // ┐ phase 1: fetch everything
-        .ap { fetchCart(userId) }           // │  (4 calls, parallel)
-        .ap { fetchPromos(userId) }         // │
-        .ap { fetchInventory(userId) }      // ┘
-        .followedBy { validateStock() }     // ── phase 2: validate
-        .ap { calcShipping() }             // ┐ phase 3: pricing
-        .ap { calcTax() }                  // │  (3 calls, parallel)
-        .ap { calcDiscounts() }            // ┘
-        .followedBy { reservePayment() }   // ── phase 4: payment
-        .ap { generateConfirmation() }     // ┐ phase 5: wrap up
-        .ap { sendReceiptEmail() }         // ┘  (2 calls, parallel)
-}
-```
-
-The constructor `::CheckoutResult` fixes parameter order at compile time. Each service returns a distinct type (`UserProfile`, `ShoppingCart`, `ShippingQuote`...). Swap any two `.ap` lines? Compiler error.
-
-### 2. 12-Field Parallel Validation with Error Accumulation
-
-Run all validators in parallel. Collect *every* error, not just the first:
+### 1. 12-Field Parallel Validation — collect *every* error
 
 ```kotlin
 val onboarding = Async {
     zipV(
-        { valFirstName(input.firstName) },
-        { valLastName(input.lastName) },
-        { valEmail(input.email) },
-        { valPhone(input.phone) },
-        { valPassword(input.password) },
-        { valBirthDate(input.birthDate) },
-        { valCountry(input.country) },
-        { valCity(input.city) },
-        { valZipCode(input.zipCode) },
-        { valAddress(input.address) },
-        { valTaxId(input.taxId) },
-        { valTerms(input.acceptedTerms) },
+        { valFirstName(input.firstName) },   // ┐
+        { valLastName(input.lastName) },      // │
+        { valEmail(input.email) },            // │ all 12 validators
+        { valPhone(input.phone) },            // │ run in parallel
+        { valPassword(input.password) },      // │
+        { valBirthDate(input.birthDate) },    // │ errors accumulate —
+        { valCountry(input.country) },        // │ you get ALL failures,
+        { valCity(input.city) },              // │ not just the first
+        { valZipCode(input.zipCode) },        // │
+        { valAddress(input.address) },        // │
+        { valTaxId(input.taxId) },            // │
+        { valTerms(input.acceptedTerms) },    // ┘
     ) { fn, ln, em, ph, pw, bd, co, ci, zc, ad, tx, tm ->
         UserOnboarding(fn, ln, em, ph, pw, bd, co, ci, zc, ad, tx, tm)
     }
-    // 7 of 12 fail → Left(Nel(FirstName(...), Email(...), ..., Terms(...)))
 }
+// 7 of 12 fail → Left(Nel(FirstName(...), Email(...), ..., Terms(...)))
+// Scales to 22 fields with full type inference
 ```
 
-All 12 validators run in parallel. All errors accumulated. Scales to 22 fields with full type inference.
+Raw coroutines **cannot** do parallel error accumulation — structured concurrency cancels siblings on first failure.
 
-### 3. Phased Validation with Short-Circuit
+### 2. Phased Validation with Short-Circuit
 
 Phase 1 validates in parallel. Phase 2 only runs if phase 1 passes:
 
@@ -289,31 +283,27 @@ val result = Async {
 // Phase 1 fails → errors returned, phase 2 never runs (saves network calls)
 ```
 
-### 4. Value-Dependent Phases with `flatMap`
+### 3. Value-Dependent Phases with `flatMap`
 
 When a later phase *needs* the result of an earlier phase:
 
 ```kotlin
 val dashboard = Async {
     lift4(::UserContext)
-        .ap { fetchProfile(userId) }       // ┐ phase 1
+        .ap { fetchProfile(userId) }       // ┐ phase 1: parallel
         .ap { fetchPreferences(userId) }   // │
         .ap { fetchLoyaltyTier(userId) }   // │
         .ap { fetchRecentOrders(userId) }  // ┘
-    .flatMap { ctx ->                      // ── phase 2: NEEDS ctx
+    .flatMap { ctx ->                      // ── barrier: phase 2 NEEDS ctx
         lift3(::PersonalizedDashboard)
-            .ap { fetchRecommendations(ctx.profile) }   // ┐ parallel
+            .ap { fetchRecommendations(ctx.profile) }   // ┐ phase 2: parallel
             .ap { fetchPromotions(ctx.loyalty) }         // │
             .ap { fetchTrending(ctx.preferences) }       // ┘
     }
 }
 ```
 
-`followedBy` = ordering barrier. `flatMap` = value dependency.
-
-### 5. Production Resilience: Compose Everything
-
-Every combinator (`timeout`, `retry`, `recover`, `race`) composes inside `ap` branches:
+### 4. Production Resilience — compose everything in parallel branches
 
 ```kotlin
 val result = Async {
@@ -332,20 +322,14 @@ Stack them for defense in depth:
 ```kotlin
 Computation { fetchUser() }
     .timeout(500.milliseconds)
-    .retry(
-        maxAttempts = 3,
-        delay = 100.milliseconds,
-        backoff = exponential,
-        shouldRetry = { it is IOException },
-        onRetry = { attempt, err, _ -> log("retry #$attempt: $err") },
-    )
+    .retry(Schedule.recurs<Throwable>(3) and Schedule.exponential(100.milliseconds))
     .recover { UserProfile.cached() }
     .traced("fetchUser", tracer)
 ```
 
-### 6. Composable Retry Policies with `Schedule`
+### 5. Composable Retry Policies with `Schedule`
 
-Build retry policies from composable pieces — recurrence limits, backoff strategies, error filters, and jitter:
+Build retry policies from composable pieces:
 
 ```kotlin
 val policy = Schedule.recurs<Throwable>(5) and
@@ -353,29 +337,20 @@ val policy = Schedule.recurs<Throwable>(5) and
     Schedule.doWhile { it is IOException }
 
 Computation { fetchUser() }.retry(policy)
+
+// Add jitter to prevent thundering herd:
+val withJitter = Schedule.exponential<Throwable>(100.milliseconds)
+    .jittered()                               // ±50% random spread
+    .withMaxDuration(30.seconds)              // stop after 30s total
+
+// Retry with fallback instead of throwing:
+Computation { fetchUser() }
+    .retryOrElse(policy) { err -> User.cached() }  // never throws
 ```
 
-`and` = both must agree to continue (uses max delay). `or` = either can continue (uses min delay).
+`and` = both must agree (max delay). `or` = either can continue (min delay).
 
-Add jitter to prevent thundering herd:
-
-```kotlin
-val withJitter = Schedule.recurs<Throwable>(5) and
-    Schedule.exponential(100.milliseconds).jittered()
-
-// Delays: ~100ms, ~200ms, ~400ms... each ±50% random spread
-```
-
-Or use fibonacci backoff for gentler ramp-up:
-
-```kotlin
-val gentle = Schedule.recurs<Throwable>(8) and
-    Schedule.fibonacci(50.milliseconds, max = 5.seconds)
-
-// Delays: 50ms, 50ms, 100ms, 150ms, 250ms, 400ms, 650ms, 1050ms...
-```
-
-### 7. Resource Safety with `bracket`
+### 6. Resource Safety with `bracket`
 
 Acquire resources, use them in parallel, guarantee release even on failure:
 
@@ -399,24 +374,10 @@ val result = Async {
         ))
 }
 // All 3 resources acquired and used in parallel.
-// If any branch fails, ALL resources released (NonCancellable).
-// Verified: BracketTest proves parallel release on sibling failure.
+// If any branch fails → ALL resources released (NonCancellable).
 ```
 
-### 8. Racing: First to Succeed Wins
-
-```kotlin
-val fastest = Async {
-    raceN(
-        Computation { fetchFromRegionUS() },   // slow (200ms)
-        Computation { fetchFromRegionEU() },   // fast (50ms)
-        Computation { fetchFromRegionAP() },   // medium (100ms)
-    )
-}
-// Returns EU response. Others cancelled. All fail → throws with suppressed.
-```
-
-### 9. Composable Resources with `Resource` Monad
+Or compose with the `Resource` monad (supports `zip` up to 8 resources):
 
 ```kotlin
 val infra = Resource.zip(
@@ -433,7 +394,20 @@ val result = Async {
             .ap { Computation { http.get("/recommendations") } }
     }
 }
-// All 3 released in reverse order, even on failure. NonCancellable.
+// All released in reverse order, even on failure. NonCancellable.
+```
+
+### 7. Racing: First to Succeed Wins
+
+```kotlin
+val fastest = Async {
+    raceN(
+        Computation { fetchFromRegionUS() },   // slow (200ms)
+        Computation { fetchFromRegionEU() },   // fast (50ms)
+        Computation { fetchFromRegionAP() },   // medium (100ms)
+    )
+}
+// Returns EU response at 50ms. US and AP cancelled. All fail → throws with suppressed.
 ```
 
 ---
@@ -445,21 +419,14 @@ With raw coroutines, you pass 15 variables to a constructor by position. Hope yo
 With this library, the curried type chain enforces it:
 
 ```kotlin
-data class DashboardPage(
-    val profile: UserProfile,
-    val preferences: UserPreferences,
-    val loyaltyTier: LoyaltyTier,
-    // ... 12 more fields, each a different type
-)
-
 Async {
     lift15(::DashboardPage)
-        .ap { fetchProfile(userId) }       // returns UserProfile     -- slot 1
-        .ap { fetchPreferences(userId) }   // returns UserPreferences -- slot 2
+        .ap { fetchProfile(userId) }       // returns UserProfile     — slot 1
+        .ap { fetchPreferences(userId) }   // returns UserPreferences — slot 2
 
-    // Swap any two lines?
-    //  .ap { fetchLoyaltyTier(userId) }   // returns LoyaltyTier -- expected UserPreferences
-    //  .ap { fetchPreferences(userId) }   // COMPILE ERROR ✗
+    // Swap these two lines?
+    //  .ap { fetchLoyaltyTier(userId) }   // returns LoyaltyTier — expected UserPreferences
+    //  .ap { fetchPreferences(userId) }   // COMPILE ERROR
 }
 ```
 
@@ -475,55 +442,55 @@ For parameters of the same type, use value classes:
 
 ## Execution Model
 
-### Laziness
-
 `Computation` is a **description**, not an execution. Nothing runs until `Async {}`:
 
 ```kotlin
 val graph = lift3(::build)
-    .ap { fetchUser() }    // NOT executed
-    .ap { fetchCart() }    // NOT executed
+    .ap { fetchUser() }    // NOT executed yet
+    .ap { fetchCart() }    // NOT executed yet
 
 val result = Async { graph }  // NOW everything runs
 ```
 
-The same graph can be executed multiple times.
-
-### `followedBy`: True Phase Barrier
-
-```
-lift4(::Result)
-    .ap { delay(30); A }             // ┐ launched at t=0
-    .ap { delay(30); B }             // ┘
-    .followedBy { delay(50); C }     // ── barrier: t=30 → t=80
-    .ap { delay(30); D }             // ── launched at t=80, done at t=110
-// Total: 110ms. D waits for the barrier.
-```
-
-### `thenValue`: No Barrier (Eager Launch)
-
-```
-lift4(::Result)
-    .ap { delay(30); A }             // launched at t=0
-    .ap { delay(30); B }             // launched at t=0
-    .thenValue { delay(50); C }      // sequential value, but...
-    .ap { delay(30); D }             // launched at t=0 (overlaps!)
-// Total: 80ms. D launched eagerly.
-```
-
-### Decision Table
+### `followedBy` vs `thenValue` vs `flatMap`
 
 | Scenario | Use | Subsequent `ap` behavior |
 |---|---|---|
-| Independent, no values needed | `followedBy` | Gated — waits |
+| Independent, no values needed | `followedBy` | Gated — waits for barrier |
 | Needs the value | `flatMap` | Gated — waits, passes value |
 | Should overlap for performance | `thenValue` | Ungated — launches at t=0 |
+
+```
+// followedBy: true barrier
+lift4(::R) .ap{A} .ap{B} .followedBy{C} .ap{D}
+// A,B launch at t=0. C starts at t=30. D starts at t=80. Total: 110ms
+
+// thenValue: no barrier
+lift4(::R) .ap{A} .ap{B} .thenValue{C} .ap{D}
+// A,B,D all launch at t=0. C sequential. Total: 80ms
+```
+
+---
+
+## Comparison: Raw Coroutines vs Arrow vs This Library
+
+| | Raw Coroutines | Arrow | This Library |
+|---|---|---|---|
+| **15 parallel calls** | 30+ lines, shuttle vars | `parZip` supports up to 9 | `lift15` + 15 `.ap` — flat |
+| **Multi-phase** | Manual, phases invisible | Nested `parZip` blocks | `followedBy` — visible |
+| **Value dependencies** | Manual sequencing | Sequential blocks | `flatMap` |
+| **Error accumulation** | Not possible in parallel | `zipOrAccumulate` (up to 9) | `zipV` up to 22 |
+| **Arg order safety** | None — positional | Named args in lambda | Compile-time via currying |
+| **Code size** | stdlib | ~15k lines (Core) | **~2,100 lines** |
+| **Dependencies** | stdlib | Arrow Core + modules | `kotlinx-coroutines-core` only |
+| **JMH overhead** | 0.001ms | 0.008–0.023ms | **0.001–0.002ms** |
+
+> All three approaches tested side-by-side: [`ThreeWayComparisonTest.kt`](src/jvmTest/kotlin/applicative/ThreeWayComparisonTest.kt)
+> JMH benchmarks: [`OrchestrationBenchmark.kt`](benchmarks/src/jmh/kotlin/applicative/benchmarks/OrchestrationBenchmark.kt)
 
 ---
 
 ## Observability
-
-Instrument any computation with lifecycle hooks:
 
 ```kotlin
 val tracer = ComputationTracer { event ->
@@ -546,41 +513,9 @@ No logging framework coupled. Bring your own.
 
 ---
 
-## Comparison: Raw Coroutines vs Arrow vs This Library
+## API Reference
 
-| | Raw Coroutines | Arrow | This Library |
-|---|---|---|---|
-| **15 parallel calls** | 30+ lines, shuttle vars | `parZip` caps at 5 | `lift15` + 15 `.ap` — flat |
-| **Multi-phase** | Manual, phases invisible | Nested `parZip` blocks | `followedBy` — visible |
-| **Value dependencies** | Manual sequencing | Sequential blocks | `flatMap` |
-| **Error accumulation** | Not possible in parallel | `zipOrAccumulate` (caps at 9) | `zipV` up to 22 |
-| **Arg order safety** | None — positional | Named args in lambda | Compile-time via currying |
-| **Code size** | stdlib | ~50k+ lines | **~2,100 lines** |
-| **Dependencies** | stdlib | Arrow Core + modules | `kotlinx-coroutines-core` only |
-| **JMH overhead** | 0.001ms | 0.008–0.023ms | **0.001–0.002ms** |
-| **Platforms** | JVM, JS, Native | JVM, JS, Native | JVM, JS, Native |
-
-For 2-3 simple parallel calls, raw coroutines are fine. The difference shows at scale.
-
-> All three approaches tested side-by-side: [`ThreeWayComparisonTest.kt`](src/jvmTest/kotlin/applicative/ThreeWayComparisonTest.kt)
-> JMH benchmarks: [`OrchestrationBenchmark.kt`](benchmarks/src/jmh/kotlin/applicative/benchmarks/OrchestrationBenchmark.kt)
-
----
-
-## Structured Concurrency
-
-All parallelism is scoped via `coroutineScope`. If any computation fails:
-
-- Sibling coroutines are automatically cancelled (verified: 1 failure cancels 9 siblings)
-- The exception propagates to the `Async {}` call site
-- `CancellationException` is never caught — structured concurrency always respected
-- No resource leaks
-
----
-
-## Full API Reference
-
-### Core
+### Core & Collections
 
 | Combinator | Semantics | Parallelism |
 |---|---|---|
@@ -588,44 +523,25 @@ All parallelism is scoped via `coroutineScope`. If any computation fails:
 | `followedBy` | True phase barrier | Sequential (gates) |
 | `thenValue` | Sequential value fill, no barrier | Sequential (no gate) |
 | `flatMap` | Monadic bind (value-dependent) | Sequential |
-| `map` | Transform result | — |
-| `zip` / `zip` (3-5 arity) / `mapN` | Combine computations | Parallel |
-| `traverse` / `traverse(n)` | Map over collection | Parallel (optionally bounded) |
-| `sequence` / `sequence(n)` | Execute computation list | Parallel (optionally bounded) |
-| `parMap` / `parMap(n)` | Alias for `traverse` | Parallel |
+| `map` / `pure` / `unit` | Transform / wrap value | — |
+| `zip` (2-5 arity) / `mapN` | Combine computations | Parallel |
+| `traverse(n?)` / `sequence(n?)` / `parMap(n?)` | Collection operations | Parallel (bounded) |
 | `race` / `raceN` / `raceAll` | First to succeed wins | Competitive |
-| `pure` / `unit` | Wrap value / Unit | — |
-| `on` | Switch dispatcher | — |
-| `named` | Set `CoroutineName` | — |
-| `context` | Read `CoroutineContext` | — |
+| `memoize` | Cache computation result | — |
+| `on` / `named` / `context` | Dispatcher, name, context | — |
 
-### Error Handling & Resilience
+### Error Handling, Retry & Schedule
 
 | Combinator | Semantics |
 |---|---|
-| `recover { }` | Catch exceptions, return fallback value |
-| `recoverWith { }` | Catch exceptions, switch to fallback computation |
-| `fallback(other)` | On failure, run alternative |
-| `timeout(duration)` | Fail if too slow |
-| `timeout(duration, default)` | Default value if too slow |
-| `timeout(duration, fallback)` | Fallback computation if too slow |
-| `timeoutRace(duration, fallback)` | Parallel timeout — fallback starts immediately |
-| `retry(n, delay, backoff, shouldRetry, onRetry)` | Configurable retry with selective filter |
-| `retry(schedule)` | Retry with composable `Schedule` policy |
-| `exponential` / `exponential(max)` | Backoff strategies |
-
-### Schedule (Composable Retry Policies)
-
-| Factory / Combinator | Semantics |
-|---|---|
-| `Schedule.recurs(n)` | Retry up to n times |
-| `Schedule.spaced(duration)` | Fixed delay between attempts |
-| `Schedule.exponential(base, factor, max)` | Exponential backoff |
-| `Schedule.fibonacci(base, max)` | Fibonacci backoff |
-| `Schedule.doWhile { predicate }` | Continue while predicate holds |
-| `schedule.jittered(factor)` | Add random jitter (default ±50%) |
-| `s1 and s2` | Both must agree (max delay) |
-| `s1 or s2` | Either can continue (min delay) |
+| `recover` / `recoverWith` / `fallback` | Catch and recover |
+| `timeout(duration)` / `timeout(d, default)` / `timeout(d, comp)` | Time-bounded |
+| `timeoutRace(duration, fallback)` | Parallel timeout (fallback starts immediately) |
+| `retry(n, delay, backoff, shouldRetry, onRetry)` | Configurable retry |
+| `retry(schedule)` / `retryOrElse(schedule, fallback)` | Schedule-based retry |
+| `Schedule.recurs` / `.spaced` / `.exponential` / `.fibonacci` | Backoff strategies |
+| `Schedule.doWhile` / `.jittered` / `.withMaxDuration` | Filters and limits |
+| `s1 and s2` / `s1 or s2` | Schedule composition |
 
 ### Validation (Error Accumulation)
 
@@ -633,110 +549,50 @@ All parallelism is scoped via `coroutineScope`. If any computation fails:
 |---|---|
 | `zipV` (2-22 args) | Parallel validation, all errors accumulated |
 | `liftV2`..`liftV22` + `apV` | Curried parallel validation |
-| `followedByV` | Phase barrier for validation |
-| `flatMapV` | Sequential, short-circuits on error |
-| `valid(a)` / `invalid(e)` | Wrap success/error |
-| `catching { toError }` | Bridge exceptions to validation errors |
-| `validate { predicate }` | Predicate-based validation |
-| `recoverV` | Prevent sibling cancellation on exception |
-| `mapV` / `mapError` | Transform success/error |
-| `traverseV` / `sequenceV` | Parallel traverse with accumulation |
-| `orThrow()` | Unwrap or throw `ValidationException` |
+| `followedByV` / `flatMapV` | Phase barriers / sequential short-circuit |
+| `valid` / `invalid` / `catching` / `validate` | Entry points |
+| `recoverV` / `mapV` / `mapError` / `orThrow` | Transforms |
+| `traverseV` / `sequenceV` | Collection operations with accumulation |
 
 ### Resource Safety
 
 | Combinator | Semantics |
 |---|---|
-| `bracket(acquire, use, release)` | Guaranteed cleanup (NonCancellable release) |
-| `guarantee(finalizer)` | Unconditional finalizer |
-| `guaranteeCase(finalizer)` | Finalizer with `ExitCase` (Completed/Failed/Cancelled) |
-| `Resource(acquire, release)` | Composable resource with `map`/`flatMap`/`zip` |
-| `Resource.zip(r1, r2, ..., f)` | Combine up to 4 resources |
-| `resource.use { }` | Terminal: acquire, use, release |
-| `resource.useComputation { }` | Terminal: integrate with `ap` chains |
+| `bracket(acquire, use, release)` | Guaranteed cleanup (NonCancellable) |
+| `guarantee` / `guaranteeCase` | Finalizers with optional `ExitCase` |
+| `Resource(acquire, release)` | Composable resource monad |
+| `Resource.zip(r1..r8, f)` | Combine up to 8 resources |
+| `resource.use` / `resource.useComputation` | Terminal operations |
 
-### Observability
+### Interop & Observability
 
 | Combinator | Semantics |
 |---|---|
-| `traced(name, onStart, onSuccess, onError)` | Lifecycle hooks |
-| `traced(name, tracer)` | Structured `ComputationTracer` |
-
-### Interop
-
-| Combinator | Semantics |
-|---|---|
-| `Deferred.toComputation()` | Wrap existing Deferred |
-| `Computation.toDeferred(scope)` | Start eagerly |
-| `Flow.firstAsComputation()` | First emission |
-| `(suspend () -> A).toComputation()` | Wrap suspend lambda |
-| `catching { }` | Exception-safe -> `Result<A>` |
-| `apOrNull` | Handle nullable computations |
-| `Result.toEither()` / `Either.toResult()` | Kotlin Result bridge |
-| `Result.toValidated(onError)` | Result to validated |
-| `delayed(duration, value)` | Wait then return |
-
-### Either
-
-| Combinator | Semantics |
-|---|---|
-| `map` / `flatMap` / `mapLeft` | Transform |
-| `fold` / `getOrElse` / `getOrNull` | Extract |
-| `swap` / `bimap` / `merge` | Structural |
-| `onLeft` / `onRight` | Side-effects |
-| `isLeft` / `isRight` | Predicates |
+| `Deferred.toComputation()` / `Computation.toDeferred(scope)` | Deferred bridge |
+| `Flow.firstAsComputation()` / `(suspend () -> A).toComputation()` | Flow/lambda bridge |
+| `Result.toEither()` / `Either.toResult()` / `Result.toValidated()` | Kotlin Result bridge |
+| `traced(name, tracer)` / `traced(name, onStart, onSuccess, onError)` | Observability hooks |
+| `delayed(duration, value)` / `catching { }` / `apOrNull` | Utilities |
 
 ---
 
 ## Examples
 
-Full working examples in the [`/examples`](examples/) directory:
+Full working examples in [`/examples`](examples/): [ecommerce-checkout](examples/ecommerce-checkout/) (11-service, 5-phase), [dashboard-aggregator](examples/dashboard-aggregator/) (14-service BFF), [validated-registration](examples/validated-registration/) (12-field validation).
 
-| Example | Description |
-|---|---|
-| [`ecommerce-checkout`](examples/ecommerce-checkout/) | 11-service, 5-phase checkout orchestration |
-| [`dashboard-aggregator`](examples/dashboard-aggregator/) | Multi-service dashboard with parallel data sources |
-| [`validated-registration`](examples/validated-registration/) | 12-field parallel validation with error accumulation |
-
----
-
-## Arrow Interop
-
-Optional module for teams already using Arrow:
-
-```kotlin
-dependencies {
-    implementation("org.applicative.coroutines:coroutines-applicatives-arrow:1.0.0")
-}
-```
-
-```kotlin
-import applicative.arrow.*
-
-// Arrow Either <-> Applicative Either
-val appEither = arrowEither.toApplicativeEither()
-val backToArrow = appEither.toArrowEither()
-
-// Arrow NonEmptyList <-> Applicative Nel
-val appNel = arrowNel.toApplicativeNel()
-
-// Bridge Arrow's parZip into a Computation chain
-val phase = fromArrow { parZip({ fetchUser() }, { fetchCart() }) { u, c -> u to c } }
-```
+Arrow interop module: [`/arrow-interop`](arrow-interop/) — optional bridges for `Either`, `Nel`, `parZip`.
 
 ---
 
 ## Building
 
 ```bash
-./gradlew jvmTest              # run 407 tests
+./gradlew jvmTest              # 457 tests
 ./gradlew :arrow-interop:test  # Arrow interop tests
 ./gradlew :benchmarks:jmh      # JMH benchmarks
 ./gradlew dokkaHtml             # API docs
 ./gradlew generateAll           # regenerate curry/lift/validated overloads (arities 2-22)
 ```
-
-## Publishing
 
 See [PUBLISHING.md](PUBLISHING.md) for Maven Central publishing instructions.
 

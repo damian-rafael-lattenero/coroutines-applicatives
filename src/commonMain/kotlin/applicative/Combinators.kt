@@ -196,6 +196,44 @@ fun <A> Computation<A>.retry(
     throw IllegalStateException("unreachable")
 }
 
+// ── retryOrElse: fallback instead of throw on exhaustion ────────────
+
+/**
+ * Retries this computation according to the given [schedule].
+ * When retries are exhausted, calls [orElse] with the last error instead of throwing.
+ *
+ * ```
+ * val policy = Schedule.recurs<Throwable>(3) and Schedule.exponential(100.milliseconds)
+ * Computation { fetchUser() }
+ *     .retryOrElse(policy) { err -> User.cached() }
+ * ```
+ *
+ * @param schedule composable retry policy
+ * @param orElse fallback invoked with the last error when the schedule says [Schedule.Decision.Done]
+ */
+fun <A> Computation<A>.retryOrElse(
+    schedule: Schedule<Throwable>,
+    orElse: suspend (Throwable) -> A,
+): Computation<A> = Computation {
+    var attempt = 0
+    while (true) {
+        try {
+            return@Computation with(this@retryOrElse) { execute() }
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            when (val decision = schedule.decide(attempt, e)) {
+                is Schedule.Decision.Continue -> {
+                    if (decision.delay > Duration.ZERO) delay(decision.delay)
+                    attempt++
+                }
+                is Schedule.Decision.Done -> return@Computation orElse(e)
+            }
+        }
+    }
+    @Suppress("UNREACHABLE_CODE")
+    throw IllegalStateException("unreachable")
+}
+
 // ── backoff strategies ───────────────────────────────────────────────────
 
 /** Doubles the delay on each retry. */

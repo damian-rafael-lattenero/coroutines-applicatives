@@ -180,6 +180,62 @@ class ResourceTest {
     }
 
     @Test
+    fun `zip5 composes and releases all 5 resources`() = runTest {
+        val releases = CopyOnWriteArrayList<String>()
+
+        val combined = Resource.zip(
+            Resource({ "a" }, { releases.add("release:$it") }),
+            Resource({ "b" }, { releases.add("release:$it") }),
+            Resource({ "c" }, { releases.add("release:$it") }),
+            Resource({ "d" }, { releases.add("release:$it") }),
+            Resource({ "e" }, { releases.add("release:$it") }),
+        ) { a, b, c, d, e -> "$a|$b|$c|$d|$e" }
+        val result = combined.use<String> { it }
+
+        assertEquals("a|b|c|d|e", result)
+        assertEquals(5, releases.size, "All 5 resources must be released")
+    }
+
+    @Test
+    fun `zip8 composes and releases all 8 resources`() = runTest {
+        val releases = CopyOnWriteArrayList<String>()
+
+        val combined = Resource.zip(
+            Resource({ "a" }, { releases.add("release:$it") }),
+            Resource({ "b" }, { releases.add("release:$it") }),
+            Resource({ "c" }, { releases.add("release:$it") }),
+            Resource({ "d" }, { releases.add("release:$it") }),
+            Resource({ "e" }, { releases.add("release:$it") }),
+            Resource({ "f" }, { releases.add("release:$it") }),
+            Resource({ "g" }, { releases.add("release:$it") }),
+            Resource({ "h" }, { releases.add("release:$it") }),
+        ) { a, b, c, d, e, f, g, h -> "$a|$b|$c|$d|$e|$f|$g|$h" }
+        val result = combined.use<String> { it }
+
+        assertEquals("a|b|c|d|e|f|g|h", result)
+        assertEquals(8, releases.size, "All 8 resources must be released")
+    }
+
+    @Test
+    fun `zip6 releases acquired resources when later acquisition fails`() = runTest {
+        val releases = CopyOnWriteArrayList<String>()
+
+        val combined = Resource.zip(
+            Resource({ "a" }, { releases.add("release:$it") }),
+            Resource({ "b" }, { releases.add("release:$it") }),
+            Resource({ "c" }, { releases.add("release:$it") }),
+            Resource<String>({ throw RuntimeException("d failed") }, { releases.add("release:$it") }),
+            Resource({ "e" }, { releases.add("release:$it") }),
+            Resource({ "f" }, { releases.add("release:$it") }),
+        ) { a, b, c, d, e, f -> "$a|$b|$c|$d|$e|$f" }
+
+        val result = runCatching { combined.use<String> { it } }
+        assertTrue(result.isFailure)
+        assertEquals("d failed", result.exceptionOrNull()?.message)
+        assertEquals(3, releases.size, "a, b, c acquired before d fails → all 3 released")
+    }
+
+    @Test
     fun `use with Computation releases on ap failure`() = runTest {
         val releases = CopyOnWriteArrayList<String>()
         val resource = Resource({ "conn" }, { releases.add("release:$it") })

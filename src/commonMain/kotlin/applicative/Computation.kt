@@ -416,6 +416,47 @@ fun <A, B> Computation<A>.zipRight(other: Computation<B>): Computation<B> = Comp
     db.await()
 }
 
+// ── memoize: cache computation result ────────────────────────────────────
+
+/**
+ * Returns a computation that executes the original at most once, caching the result.
+ * Subsequent executions return the cached value (or rethrow the cached exception).
+ *
+ * Thread-safe: if multiple coroutines execute concurrently, only the first runs
+ * the original computation — others suspend until the result is available.
+ *
+ * ```
+ * val expensive = Computation { fetchExpensiveData() }.memoize()
+ *
+ * Async {
+ *     lift2(::combine)
+ *         .ap { expensive }   // executes the original
+ *         .ap { expensive }   // reuses cached result
+ * }
+ * ```
+ */
+fun <A> Computation<A>.memoize(): Computation<A> {
+    val original = this
+    val deferred = CompletableDeferred<A>()
+    val started = kotlinx.coroutines.sync.Mutex()
+    return Computation {
+        if (started.tryLock()) {
+            // First caller: execute and complete the deferred
+            try {
+                val value = with(original) { execute() }
+                deferred.complete(value)
+                value
+            } catch (e: Throwable) {
+                deferred.completeExceptionally(e)
+                throw e
+            }
+        } else {
+            // Subsequent callers: await the result
+            deferred.await()
+        }
+    }
+}
+
 // ── DSL entry point ─────────────────────────────────────────────────────
 
 /**
