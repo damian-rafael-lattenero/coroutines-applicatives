@@ -128,17 +128,17 @@ class BenchmarkComparisonTest {
         class PaymentDeclined(msg: String) : BookingError(msg)
     }
 
-    private fun validatePassport(p: String): Either<Nel<BookingError>, PassportId> =
+    private fun validatePassport(p: String): Either<NonEmptyList<BookingError>, PassportId> =
         if (p.isNotEmpty()) Either.Right(PassportId(p))
-        else Either.Left(BookingError.InvalidPassport("empty").nel())
+        else Either.Left(BookingError.InvalidPassport("empty").toNonEmptyList())
 
-    private fun validateSeat(s: String): Either<Nel<BookingError>, SeatAssignment> =
+    private fun validateSeat(s: String): Either<NonEmptyList<BookingError>, SeatAssignment> =
         if (s.matches(Regex("\\d+[A-F]"))) Either.Right(SeatAssignment(s))
-        else Either.Left(BookingError.SeatUnavailable("bad seat").nel())
+        else Either.Left(BookingError.SeatUnavailable("bad seat").toNonEmptyList())
 
-    private fun validatePayment(p: String): Either<Nel<BookingError>, PaymentConfirmation> =
+    private fun validatePayment(p: String): Either<NonEmptyList<BookingError>, PaymentConfirmation> =
         if (p.startsWith("visa")) Either.Right(PaymentConfirmation(p))
-        else Either.Left(BookingError.PaymentDeclined("not visa").nel())
+        else Either.Left(BookingError.PaymentDeclined("not visa").toNonEmptyList())
 
     private val bookingExpected = BookingResult(
         passport = PassportId("ABC123"),
@@ -186,12 +186,12 @@ class BenchmarkComparisonTest {
 
     @Test
     fun `scenario 2 - this library - all validations fail`() = runTest {
-        fun failPassport(p: String): Either<Nel<BookingError>, PassportId> =
-            Either.Left(BookingError.InvalidPassport("expired").nel())
-        fun failSeat(s: String): Either<Nel<BookingError>, SeatAssignment> =
-            Either.Left(BookingError.SeatUnavailable("taken").nel())
-        fun failPayment(p: String): Either<Nel<BookingError>, PaymentConfirmation> =
-            Either.Left(BookingError.PaymentDeclined("declined").nel())
+        fun failPassport(p: String): Either<NonEmptyList<BookingError>, PassportId> =
+            Either.Left(BookingError.InvalidPassport("expired").toNonEmptyList())
+        fun failSeat(s: String): Either<NonEmptyList<BookingError>, SeatAssignment> =
+            Either.Left(BookingError.SeatUnavailable("taken").toNonEmptyList())
+        fun failPayment(p: String): Either<NonEmptyList<BookingError>, PaymentConfirmation> =
+            Either.Left(BookingError.PaymentDeclined("declined").toNonEmptyList())
 
         val result = Async {
             liftV5<BookingError, PassportId, SeatAssignment, PaymentConfirmation, FlightAvailability, LoungeAccess, BookingResult>(::BookingResult)
@@ -203,7 +203,7 @@ class BenchmarkComparisonTest {
         }
 
         // ALL THREE errors accumulated, not just the first
-        assertIs<Either.Left<Nel<BookingError>>>(result)
+        assertIs<Either.Left<NonEmptyList<BookingError>>>(result)
         assertEquals(3, result.value.size)
         assertIs<BookingError.InvalidPassport>(result.value[0])
         assertIs<BookingError.SeatUnavailable>(result.value[1])

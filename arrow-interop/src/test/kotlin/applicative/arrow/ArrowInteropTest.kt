@@ -5,7 +5,6 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class ArrowInteropTest {
 
@@ -70,8 +69,8 @@ class ArrowInteropTest {
 
     @Test
     fun `applicative Nel converts to Arrow NonEmptyList`() {
-        val nel = Nel(1, listOf(2, 3))
-        val result = nel.toArrowNel()
+        val nonEmptyList = NonEmptyList(1, listOf(2, 3))
+        val result = nonEmptyList.toArrowNel()
         assertEquals(1, result.head)
         assertEquals(listOf(2, 3), result.tail)
     }
@@ -109,17 +108,17 @@ class ArrowInteropTest {
             arrow.core.Either.Left(arrow.core.NonEmptyList("e1", listOf("e2")))
 
         val result = Async { arrowResult.toValidatedComputation() }
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("e1", "e2"), result.value.toList())
     }
 
     @Test
     fun `applicative validated result converts to Arrow validated`() {
-        val right: Either<Nel<String>, Int> = Either.Right(42)
+        val right: Either<NonEmptyList<String>, Int> = Either.Right(42)
         val arrowRight = right.toArrowValidated()
         assertEquals(arrow.core.Either.Right(42), arrowRight)
 
-        val left: Either<Nel<String>, Int> = Either.Left(Nel("e1", listOf("e2")))
+        val left: Either<NonEmptyList<String>, Int> = Either.Left(NonEmptyList("e1", listOf("e2")))
         val arrowLeft = left.toArrowValidated()
         assertIs<arrow.core.Either.Left<arrow.core.NonEmptyList<String>>>(arrowLeft)
         assertEquals(listOf("e1", "e2"), arrowLeft.value.all)
@@ -163,12 +162,12 @@ class ArrowInteropTest {
                     when (e) {
                         is Either.Left -> Either.Left(e.value.let { err ->
                             @Suppress("UNCHECKED_CAST")
-                            err as Nel<String>
+                            err as NonEmptyList<String>
                         })
                         is Either.Right -> Either.Right(e.value)
                     }
                 }},
-                { Either.Right("bob@test.com") as Either<Nel<String>, String> },
+                { Either.Right("bob@test.com") as Either<NonEmptyList<String>, String> },
             ) { name, email -> "$name <$email>" }
         }
 

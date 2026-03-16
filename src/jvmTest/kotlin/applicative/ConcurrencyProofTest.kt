@@ -206,23 +206,23 @@ class ConcurrencyProofTest {
                 .apV {
                     latchA.complete(Unit)
                     latchB.await(); latchC.await()
-                    Either.Left(Nel("err-A"))
+                    Either.Left(NonEmptyList("err-A"))
                 }
                 .apV {
                     latchB.complete(Unit)
                     latchA.await(); latchC.await()
-                    Either.Left(Nel("err-B"))
+                    Either.Left(NonEmptyList("err-B"))
                 }
                 .apV {
                     latchC.complete(Unit)
                     latchA.await(); latchB.await()
-                    Either.Left(Nel("err-C"))
+                    Either.Left(NonEmptyList("err-C"))
                 }
         }
 
         // If sequential, this DEADLOCKS. Completion proves true parallelism.
         // If errors weren't accumulated, we'd only get 1 error.
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("err-A", "err-B", "err-C"), result.value.toList())
     }
 
@@ -230,14 +230,14 @@ class ConcurrencyProofTest {
     fun `zipV accumulates errors from parallel branches - timing proof`() = runTest {
         val result = Async {
             zipV(
-                { delay(50); Either.Left(Nel("e1")) as Either<Nel<String>, String> },
-                { delay(50); Either.Left(Nel("e2")) },
-                { delay(50); Either.Left(Nel("e3")) },
-                { delay(50); Either.Left(Nel("e4")) },
+                { delay(50); Either.Left(NonEmptyList("e1")) as Either<NonEmptyList<String>, String> },
+                { delay(50); Either.Left(NonEmptyList("e2")) },
+                { delay(50); Either.Left(NonEmptyList("e3")) },
+                { delay(50); Either.Left(NonEmptyList("e4")) },
             ) { a, b, c, d -> "$a|$b|$c|$d" }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(4, result.value.size)
         // If parallel: 50ms. If sequential: 200ms.
         assertEquals(50, currentTime,

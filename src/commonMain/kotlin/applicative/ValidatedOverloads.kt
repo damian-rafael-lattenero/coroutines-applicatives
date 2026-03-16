@@ -10,10 +10,10 @@ import applicative.internal.curried
 // ── zipV: parallel validation with full type inference ───────────────────
 
 fun <E, A, B, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
     combine: (A, B) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val ea = da.await()
@@ -30,11 +30,11 @@ fun <E, A, B, R> zipV(
 }
 
 fun <E, A, B, C, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
     combine: (A, B, C) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -54,12 +54,12 @@ fun <E, A, B, C, R> zipV(
 }
 
 fun <E, A, B, C, D, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
     combine: (A, B, C, D) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -82,13 +82,13 @@ fun <E, A, B, C, D, R> zipV(
 }
 
 fun <E, A, B, C, D, F, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
     combine: (A, B, C, D, F) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -114,14 +114,14 @@ fun <E, A, B, C, D, F, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
     combine: (A, B, C, D, F, G) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -150,15 +150,15 @@ fun <E, A, B, C, D, F, G, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
     combine: (A, B, C, D, F, G, H) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -190,16 +190,16 @@ fun <E, A, B, C, D, F, G, H, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
     combine: (A, B, C, D, F, G, H, I) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -234,17 +234,17 @@ fun <E, A, B, C, D, F, G, H, I, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
     combine: (A, B, C, D, F, G, H, I, J) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -282,18 +282,18 @@ fun <E, A, B, C, D, F, G, H, I, J, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
     combine: (A, B, C, D, F, G, H, I, J, K) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -334,19 +334,19 @@ fun <E, A, B, C, D, F, G, H, I, J, K, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
     combine: (A, B, C, D, F, G, H, I, J, K, L) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -390,20 +390,20 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -450,21 +450,21 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -514,22 +514,22 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -582,23 +582,23 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -654,24 +654,24 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -730,25 +730,25 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
-    fs: suspend () -> Either<Nel<E>, S>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
+    fs: suspend () -> Either<NonEmptyList<E>, S>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -810,26 +810,26 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
-    fs: suspend () -> Either<Nel<E>, S>,
-    ft: suspend () -> Either<Nel<E>, T>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
+    fs: suspend () -> Either<NonEmptyList<E>, S>,
+    ft: suspend () -> Either<NonEmptyList<E>, T>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -894,27 +894,27 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
-    fs: suspend () -> Either<Nel<E>, S>,
-    ft: suspend () -> Either<Nel<E>, T>,
-    fu: suspend () -> Either<Nel<E>, U>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
+    fs: suspend () -> Either<NonEmptyList<E>, S>,
+    ft: suspend () -> Either<NonEmptyList<E>, T>,
+    fu: suspend () -> Either<NonEmptyList<E>, U>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -982,28 +982,28 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
-    fs: suspend () -> Either<Nel<E>, S>,
-    ft: suspend () -> Either<Nel<E>, T>,
-    fu: suspend () -> Either<Nel<E>, U>,
-    fv: suspend () -> Either<Nel<E>, V>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
+    fs: suspend () -> Either<NonEmptyList<E>, S>,
+    ft: suspend () -> Either<NonEmptyList<E>, T>,
+    fu: suspend () -> Either<NonEmptyList<E>, U>,
+    fv: suspend () -> Either<NonEmptyList<E>, V>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -1074,29 +1074,29 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
-    fs: suspend () -> Either<Nel<E>, S>,
-    ft: suspend () -> Either<Nel<E>, T>,
-    fu: suspend () -> Either<Nel<E>, U>,
-    fv: suspend () -> Either<Nel<E>, V>,
-    fw: suspend () -> Either<Nel<E>, W>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
+    fs: suspend () -> Either<NonEmptyList<E>, S>,
+    ft: suspend () -> Either<NonEmptyList<E>, T>,
+    fu: suspend () -> Either<NonEmptyList<E>, U>,
+    fv: suspend () -> Either<NonEmptyList<E>, V>,
+    fw: suspend () -> Either<NonEmptyList<E>, W>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -1170,30 +1170,30 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, R> zipV(
 }
 
 fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X, R> zipV(
-    fa: suspend () -> Either<Nel<E>, A>,
-    fb: suspend () -> Either<Nel<E>, B>,
-    fc: suspend () -> Either<Nel<E>, C>,
-    fd: suspend () -> Either<Nel<E>, D>,
-    ff: suspend () -> Either<Nel<E>, F>,
-    fg: suspend () -> Either<Nel<E>, G>,
-    fh: suspend () -> Either<Nel<E>, H>,
-    fi: suspend () -> Either<Nel<E>, I>,
-    fj: suspend () -> Either<Nel<E>, J>,
-    fk: suspend () -> Either<Nel<E>, K>,
-    fl: suspend () -> Either<Nel<E>, L>,
-    fm: suspend () -> Either<Nel<E>, M>,
-    fn: suspend () -> Either<Nel<E>, N>,
-    fO: suspend () -> Either<Nel<E>, O>,
-    fp: suspend () -> Either<Nel<E>, P>,
-    fq: suspend () -> Either<Nel<E>, Q>,
-    fs: suspend () -> Either<Nel<E>, S>,
-    ft: suspend () -> Either<Nel<E>, T>,
-    fu: suspend () -> Either<Nel<E>, U>,
-    fv: suspend () -> Either<Nel<E>, V>,
-    fw: suspend () -> Either<Nel<E>, W>,
-    fx: suspend () -> Either<Nel<E>, X>,
+    fa: suspend () -> Either<NonEmptyList<E>, A>,
+    fb: suspend () -> Either<NonEmptyList<E>, B>,
+    fc: suspend () -> Either<NonEmptyList<E>, C>,
+    fd: suspend () -> Either<NonEmptyList<E>, D>,
+    ff: suspend () -> Either<NonEmptyList<E>, F>,
+    fg: suspend () -> Either<NonEmptyList<E>, G>,
+    fh: suspend () -> Either<NonEmptyList<E>, H>,
+    fi: suspend () -> Either<NonEmptyList<E>, I>,
+    fj: suspend () -> Either<NonEmptyList<E>, J>,
+    fk: suspend () -> Either<NonEmptyList<E>, K>,
+    fl: suspend () -> Either<NonEmptyList<E>, L>,
+    fm: suspend () -> Either<NonEmptyList<E>, M>,
+    fn: suspend () -> Either<NonEmptyList<E>, N>,
+    fO: suspend () -> Either<NonEmptyList<E>, O>,
+    fp: suspend () -> Either<NonEmptyList<E>, P>,
+    fq: suspend () -> Either<NonEmptyList<E>, Q>,
+    fs: suspend () -> Either<NonEmptyList<E>, S>,
+    ft: suspend () -> Either<NonEmptyList<E>, T>,
+    fu: suspend () -> Either<NonEmptyList<E>, U>,
+    fv: suspend () -> Either<NonEmptyList<E>, V>,
+    fw: suspend () -> Either<NonEmptyList<E>, W>,
+    fx: suspend () -> Either<NonEmptyList<E>, X>,
     combine: (A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X) -> R,
-): Computation<Either<Nel<E>, R>> = Computation {
+): Computation<Either<NonEmptyList<E>, R>> = Computation {
     val da = async { fa() }
     val db = async { fb() }
     val dc = async { fc() }
@@ -1271,65 +1271,65 @@ fun <E, A, B, C, D, F, G, H, I, J, K, L, M, N, O, P, Q, S, T, U, V, W, X, R> zip
 
 // ── liftV: curried validated lift ────────────────────────────────────────
 
-fun <E, P1, P2, R> liftV2(f: (P1, P2) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> R>> =
+fun <E, P1, P2, R> liftV2(f: (P1, P2) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, R> liftV3(f: (P1, P2, P3) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> R>> =
+fun <E, P1, P2, P3, R> liftV3(f: (P1, P2, P3) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, R> liftV4(f: (P1, P2, P3, P4) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> R>> =
+fun <E, P1, P2, P3, P4, R> liftV4(f: (P1, P2, P3, P4) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, R> liftV5(f: (P1, P2, P3, P4, P5) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> R>> =
+fun <E, P1, P2, P3, P4, P5, R> liftV5(f: (P1, P2, P3, P4, P5) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, R> liftV6(f: (P1, P2, P3, P4, P5, P6) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, R> liftV6(f: (P1, P2, P3, P4, P5, P6) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, R> liftV7(f: (P1, P2, P3, P4, P5, P6, P7) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, R> liftV7(f: (P1, P2, P3, P4, P5, P6, P7) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, R> liftV8(f: (P1, P2, P3, P4, P5, P6, P7, P8) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, R> liftV8(f: (P1, P2, P3, P4, P5, P6, P7, P8) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, R> liftV9(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, R> liftV9(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, R> liftV10(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, R> liftV10(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, R> liftV11(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, R> liftV11(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, R> liftV12(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, R> liftV12(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, R> liftV13(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, R> liftV13(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, R> liftV14(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, R> liftV14(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, R> liftV15(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, R> liftV15(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, R> liftV16(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, R> liftV16(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, R> liftV17(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, R> liftV17(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, R> liftV18(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, R> liftV18(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, R> liftV19(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, R> liftV19(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, R> liftV20(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> (P20) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, R> liftV20(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> (P20) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, R> liftV21(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> (P20) -> (P21) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, R> liftV21(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> (P20) -> (P21) -> R>> =
     pure(Either.Right(f.curried()))
 
-fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, R> liftV22(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22) -> R): Computation<Either<Nel<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> (P20) -> (P21) -> (P22) -> R>> =
+fun <E, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, R> liftV22(f: (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22) -> R): Computation<Either<NonEmptyList<E>, (P1) -> (P2) -> (P3) -> (P4) -> (P5) -> (P6) -> (P7) -> (P8) -> (P9) -> (P10) -> (P11) -> (P12) -> (P13) -> (P14) -> (P15) -> (P16) -> (P17) -> (P18) -> (P19) -> (P20) -> (P21) -> (P22) -> R>> =
     pure(Either.Right(f.curried()))

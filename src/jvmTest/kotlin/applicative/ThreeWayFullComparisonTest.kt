@@ -5,15 +5,13 @@ import arrow.core.raise.either
 import arrow.core.raise.zipOrAccumulate
 import arrow.fx.coroutines.parZip
 import applicative.Either as AppEither
-import applicative.Nel as AppNel
+import applicative.NonEmptyList as AppNel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
@@ -23,7 +21,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 // ════════════════════════════════════════════════════════════════════════════════
 // Full Three-Way Comparison Test
@@ -1209,7 +1206,7 @@ class ThreeWayFullComparisonTest {
     @Test
     fun `nel - construction, concatenation, list compliance`() = runTest {
         // Construction
-        val single = "hello".nel()
+        val single = "hello".toNonEmptyList()
         assertEquals(1, single.size)
         assertEquals("hello", single.head)
 
@@ -1226,6 +1223,6 @@ class ThreeWayFullComparisonTest {
         assertTrue(!single.isEmpty())
 
         // toString
-        assertEquals("Nel(a, b, c)", multi.toString())
+        assertEquals("NonEmptyList(a, b, c)", multi.toString())
     }
 }

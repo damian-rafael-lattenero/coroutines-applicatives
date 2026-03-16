@@ -1,7 +1,6 @@
 package applicative
 
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -166,7 +165,7 @@ class InteropTest {
         val result = Async {
             Result.failure<Int>(RuntimeException("boom")).toValidated { "error: ${it.message}" }
         }
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals("error: boom", result.value.head)
     }
 

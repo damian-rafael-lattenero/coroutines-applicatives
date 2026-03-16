@@ -322,8 +322,8 @@ class EitherTest {
     @Test
     fun `toValidatedNel wraps Left in Nel`() {
         val result = left("err").toValidatedNel()
-        assertIs<Either.Left<Nel<String>>>(result)
-        assertEquals(Nel.of("err"), result.value)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
+        assertEquals(NonEmptyList.of("err"), result.value)
     }
 
     @Test

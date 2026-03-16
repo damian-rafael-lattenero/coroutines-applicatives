@@ -2,7 +2,7 @@ package applicative.arrow
 
 import applicative.Computation
 import applicative.Either
-import applicative.Nel
+import applicative.NonEmptyList
 import applicative.pure
 
 // ── Arrow Either ↔ Applicative Either ───────────────────────────────────
@@ -36,15 +36,15 @@ fun <E, A> Either<E, A>.toArrowEither(): arrow.core.Either<E, A> = when (this) {
 // ── Arrow NonEmptyList ↔ Applicative Nel ────────────────────────────────
 
 /**
- * Converts an Arrow [arrow.core.NonEmptyList] to an applicative [Nel].
+ * Converts an Arrow [arrow.core.NonEmptyList] to an applicative [NonEmptyList].
  */
-fun <A> arrow.core.NonEmptyList<A>.toApplicativeNel(): Nel<A> =
-    Nel(head, tail)
+fun <A> arrow.core.NonEmptyList<A>.toApplicativeNel(): NonEmptyList<A> =
+    NonEmptyList(head, tail)
 
 /**
- * Converts an applicative [Nel] to an Arrow [arrow.core.NonEmptyList].
+ * Converts an applicative [NonEmptyList] to an Arrow [arrow.core.NonEmptyList].
  */
-fun <A> Nel<A>.toArrowNel(): arrow.core.NonEmptyList<A> =
+fun <A> NonEmptyList<A>.toArrowNel(): arrow.core.NonEmptyList<A> =
     arrow.core.NonEmptyList(head, tail)
 
 // ── Arrow Validated Either ↔ Applicative Validated Either ───────────────
@@ -61,7 +61,7 @@ fun <A> Nel<A>.toArrowNel(): arrow.core.NonEmptyList<A> =
  * val computation: Computation<Either<Nel<Err>, User>> = arrowResult.toValidatedComputation()
  * ```
  */
-fun <E, A> arrow.core.Either<arrow.core.NonEmptyList<E>, A>.toValidatedComputation(): Computation<Either<Nel<E>, A>> =
+fun <E, A> arrow.core.Either<arrow.core.NonEmptyList<E>, A>.toValidatedComputation(): Computation<Either<NonEmptyList<E>, A>> =
     pure(
         when (this) {
             is arrow.core.Either.Left -> Either.Left(value.toApplicativeNel())
@@ -74,7 +74,7 @@ fun <E, A> arrow.core.Either<arrow.core.NonEmptyList<E>, A>.toValidatedComputati
  *
  * Use this to pass results from `apV`/`zipV` chains into Arrow-based pipelines.
  */
-fun <E, A> Either<Nel<E>, A>.toArrowValidated(): arrow.core.Either<arrow.core.NonEmptyList<E>, A> =
+fun <E, A> Either<NonEmptyList<E>, A>.toArrowValidated(): arrow.core.Either<arrow.core.NonEmptyList<E>, A> =
     when (this) {
         is Either.Left -> arrow.core.Either.Left(value.toArrowNel())
         is Either.Right -> arrow.core.Either.Right(value)

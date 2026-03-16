@@ -197,7 +197,7 @@ class ApplicativeLawsTest {
                 invalid<String, Int>(err)
                     .mapError { it.length }
             }
-            assertEquals(Either.Left(Nel(err.length)), result)
+            assertEquals(Either.Left(NonEmptyList(err.length)), result)
         }
     }
 
@@ -215,8 +215,8 @@ class ApplicativeLawsTest {
     @Test
     fun `mapError allows unifying different error types in apV chains`() = runTest {
         checkAll(Arb.string(), Arb.string()) { nameErr, ageErr ->
-            val nameCheck: Computation<Either<Nel<String>, String>> = invalid(nameErr)
-            val ageCheck: Computation<Either<Nel<String>, Int>> = invalid(ageErr)
+            val nameCheck: Computation<Either<NonEmptyList<String>, String>> = invalid(nameErr)
+            val ageCheck: Computation<Either<NonEmptyList<String>, Int>> = invalid(ageErr)
 
             val result = Async {
                 liftV2<Pair<String, String>, String, Int, String> { name, age -> "$name:$age" }

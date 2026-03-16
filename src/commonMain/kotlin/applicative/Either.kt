@@ -170,14 +170,14 @@ inline fun <E, A, B, C> Either<E, A>.zip(other: Either<E, B>, crossinline combin
 // ── bridge to validated ───────────────────────────────────────────────
 
 /**
- * Lifts a single-error [Either] into the [Nel]-based validated world.
+ * Lifts a single-error [Either] into the [NonEmptyList]-based validated world.
  *
  * ```
  * left("bad").toValidatedNel()  // Left(Nel("bad"))
  * right(42).toValidatedNel()    // Right(42)
  * ```
  */
-fun <E, A> Either<E, A>.toValidatedNel(): Either<Nel<E>, A> = when (this) {
-    is Either.Left -> Either.Left(value.nel())
+fun <E, A> Either<E, A>.toValidatedNel(): Either<NonEmptyList<E>, A> = when (this) {
+    is Either.Left -> Either.Left(value.toNonEmptyList())
     is Either.Right -> this
 }

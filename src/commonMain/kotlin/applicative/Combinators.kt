@@ -288,6 +288,48 @@ fun <A> Computation<A>.retryWithResult(
     throw IllegalStateException("unreachable")
 }
 
+// ── ensure / ensureNotNull ───────────────────────────────────────────────
+
+/**
+ * Validates the result of this computation against [predicate].
+ * If the predicate fails, throws the exception produced by [error].
+ *
+ * Useful for short-circuit guards inside computation chains:
+ *
+ * ```
+ * Computation { fetchUser(id) }
+ *     .ensure({ InactiveUserException(id) }) { it.isActive }
+ *     .flatMap { user -> buildDashboard(user) }
+ * ```
+ */
+fun <A> Computation<A>.ensure(
+    error: () -> Throwable,
+    predicate: (A) -> Boolean,
+): Computation<A> = Computation {
+    val a = with(this@ensure) { execute() }
+    if (predicate(a)) a else throw error()
+}
+
+/**
+ * Extracts a non-null value from the result using [extract].
+ * If the extracted value is null, throws the exception produced by [error].
+ *
+ * Avoids nested null checks in computation chains:
+ *
+ * ```
+ * Computation { fetchUser(id) }
+ *     .ensureNotNull({ ProfileMissing(id) }) { it.profile }
+ *     .flatMap { profile -> loadPreferences(profile) }
+ * ```
+ */
+fun <A, B : Any> Computation<A>.ensureNotNull(
+    error: () -> Throwable,
+    extract: (A) -> B?,
+): Computation<B> = Computation {
+    val a = with(this@ensureNotNull) { execute() }
+    extract(a) ?: throw error()
+}
+
 // ── backoff strategies ───────────────────────────────────────────────────
 
 /** Doubles the delay on each retry. */

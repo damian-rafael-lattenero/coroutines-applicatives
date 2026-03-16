@@ -1,12 +1,11 @@
 package applicative
 
 import arrow.core.NonEmptyList as ArrowNel
-import arrow.core.nonEmptyListOf
 import arrow.core.raise.either
 import arrow.core.raise.zipOrAccumulate
 import arrow.fx.coroutines.parZip
 import applicative.Either as AppEither
-import applicative.Nel as AppNel
+import applicative.NonEmptyList as AppNel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest

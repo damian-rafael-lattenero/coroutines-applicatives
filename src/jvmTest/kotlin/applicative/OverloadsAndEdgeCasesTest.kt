@@ -189,9 +189,9 @@ class OverloadsAndEdgeCasesTest {
 
     @Test
     fun `invalidAll wraps Nel of errors`() = runTest {
-        val errors = Nel.of("err1", "err2", "err3")
+        val errors = NonEmptyList.of("err1", "err2", "err3")
         val result = Async { invalidAll<String, Int>(errors) }
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("err1", "err2", "err3"), result.value.toList())
     }
 
@@ -211,8 +211,8 @@ class OverloadsAndEdgeCasesTest {
 
         val result = Async {
             liftV2<String, String, String, String> { a, b -> "$a|$b" }
-                .apV { order.add("first"); Either.Right("A") as Either<Nel<String>, String> }
-                .followedByV { order.add("second"); Either.Right("B") as Either<Nel<String>, String> }
+                .apV { order.add("first"); Either.Right("A") as Either<NonEmptyList<String>, String> }
+                .followedByV { order.add("second"); Either.Right("B") as Either<NonEmptyList<String>, String> }
         }
 
         assertEquals(Either.Right("A|B"), result)
@@ -232,13 +232,13 @@ class OverloadsAndEdgeCasesTest {
         val result = Async {
             invalid<String, Int>("err").mapV { it * 2 }
         }
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("err"), result.value.toList())
     }
 
     @Test
     fun `errors extension property on Left`() {
-        val left = Either.Left(Nel.of("e1", "e2"))
+        val left = Either.Left(NonEmptyList.of("e1", "e2"))
         assertEquals(listOf("e1", "e2"), left.errors.toList())
     }
 
@@ -271,7 +271,7 @@ class OverloadsAndEdgeCasesTest {
             }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("neg:-2", "neg:-4"), result.value.toList())
     }
 
@@ -281,7 +281,7 @@ class OverloadsAndEdgeCasesTest {
         var maxConcurrent = 0
 
         val computations = (0 until 6).map { i ->
-            Computation<Either<Nel<String>, String>> {
+            Computation<Either<NonEmptyList<String>, String>> {
                 concurrent++
                 if (concurrent > maxConcurrent) maxConcurrent = concurrent
                 delay(50)

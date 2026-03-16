@@ -2,7 +2,6 @@ package applicative
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,11 +42,11 @@ class ValidatedTest {
     fun `liftV+apV accumulates errors from two failures`() = runTest {
         val result = Async {
             liftV2<Err, ValidCard, StockStatus, Pair<ValidCard, StockStatus>> { card, stock -> card to stock }
-                .apV { Either.Left(Err.InvalidCard("expired").nel()) }
-                .apV { Either.Left(Err.OutOfStock("sku-99").nel()) }
+                .apV { Either.Left(Err.InvalidCard("expired").toNonEmptyList()) }
+                .apV { Either.Left(Err.OutOfStock("sku-99").toNonEmptyList()) }
         }
 
-        assertIs<Either.Left<Nel<Err>>>(result)
+        assertIs<Either.Left<NonEmptyList<Err>>>(result)
         assertEquals(2, result.value.size)
         assertIs<Err.InvalidCard>(result.value[0])
         assertIs<Err.OutOfStock>(result.value[1])
@@ -57,12 +56,12 @@ class ValidatedTest {
     fun `liftV+apV accumulates errors from three failures`() = runTest {
         val result = Async {
             liftV3<Err, ValidCard, StockStatus, VerifiedAddress, ValidatedCheckout>(::ValidatedCheckout)
-                .apV { Either.Left(Err.InvalidCard("expired").nel()) }
-                .apV { Either.Left(Err.OutOfStock("sku-123").nel()) }
-                .apV { Either.Left(Err.BadAddress("missing zip").nel()) }
+                .apV { Either.Left(Err.InvalidCard("expired").toNonEmptyList()) }
+                .apV { Either.Left(Err.OutOfStock("sku-123").toNonEmptyList()) }
+                .apV { Either.Left(Err.BadAddress("missing zip").toNonEmptyList()) }
         }
 
-        assertIs<Either.Left<Nel<Err>>>(result)
+        assertIs<Either.Left<NonEmptyList<Err>>>(result)
         assertEquals(3, result.value.size)
         assertIs<Err.InvalidCard>(result.value[0])
         assertIs<Err.OutOfStock>(result.value[1])
@@ -73,7 +72,7 @@ class ValidatedTest {
     fun `liftV+apV returns Right when all succeed`() = runTest {
         val result = Async {
             liftV3<Err, ValidCard, StockStatus, VerifiedAddress, ValidatedCheckout>(::ValidatedCheckout)
-                .apV { Either.Right(ValidCard("4111-1111-1111-1111")) as Either<Nel<Err>, ValidCard> }
+                .apV { Either.Right(ValidCard("4111-1111-1111-1111")) as Either<NonEmptyList<Err>, ValidCard> }
                 .apV { Either.Right(StockStatus("sku-42")) }
                 .apV { Either.Right(VerifiedAddress("123 Main St")) }
         }
@@ -88,12 +87,12 @@ class ValidatedTest {
     fun `liftV+apV with mix of success and failure returns only failures`() = runTest {
         val result = Async {
             liftV3<Err, ValidCard, StockStatus, VerifiedAddress, ValidatedCheckout>(::ValidatedCheckout)
-                .apV { Either.Right(ValidCard("4111-1111-1111-1111")) as Either<Nel<Err>, ValidCard> }
-                .apV { Either.Left(Err.OutOfStock("sku-123").nel()) }
-                .apV { Either.Left(Err.BadAddress("missing zip").nel()) }
+                .apV { Either.Right(ValidCard("4111-1111-1111-1111")) as Either<NonEmptyList<Err>, ValidCard> }
+                .apV { Either.Left(Err.OutOfStock("sku-123").toNonEmptyList()) }
+                .apV { Either.Left(Err.BadAddress("missing zip").toNonEmptyList()) }
         }
 
-        assertIs<Either.Left<Nel<Err>>>(result)
+        assertIs<Either.Left<NonEmptyList<Err>>>(result)
         assertEquals(2, result.value.size)
         assertIs<Err.OutOfStock>(result.value[0])
         assertIs<Err.BadAddress>(result.value[1])
@@ -103,11 +102,11 @@ class ValidatedTest {
     fun `liftV+apV single failure returns that error`() = runTest {
         val result = Async {
             liftV2<Err, ValidCard, StockStatus, Pair<ValidCard, StockStatus>> { card, stock -> card to stock }
-                .apV { Either.Right(ValidCard("4111-1111-1111-1111")) as Either<Nel<Err>, ValidCard> }
-                .apV { Either.Left(Err.OutOfStock("sku-123").nel()) }
+                .apV { Either.Right(ValidCard("4111-1111-1111-1111")) as Either<NonEmptyList<Err>, ValidCard> }
+                .apV { Either.Left(Err.OutOfStock("sku-123").toNonEmptyList()) }
         }
 
-        assertIs<Either.Left<Nel<Err>>>(result)
+        assertIs<Either.Left<NonEmptyList<Err>>>(result)
         assertEquals(1, result.value.size)
         assertIs<Err.OutOfStock>(result.value[0])
     }
@@ -163,11 +162,11 @@ class ValidatedTest {
     fun `sequential liftV+apV accumulates errors across phases`() = runTest {
         val result = Async {
             liftV2<Err, ValidCard, StockStatus, Pair<ValidCard, StockStatus>> { card, stock -> card to stock }
-                .apV { Either.Left(Err.InvalidCard("declined").nel()) }
-                .apV { Either.Left(Err.OutOfStock("sku-7").nel()) }
+                .apV { Either.Left(Err.InvalidCard("declined").toNonEmptyList()) }
+                .apV { Either.Left(Err.OutOfStock("sku-7").toNonEmptyList()) }
         }
 
-        assertIs<Either.Left<Nel<Err>>>(result)
+        assertIs<Either.Left<NonEmptyList<Err>>>(result)
         assertEquals(2, result.value.size)
         assertIs<Err.InvalidCard>(result.value[0])
         assertIs<Err.OutOfStock>(result.value[1])
@@ -179,8 +178,8 @@ class ValidatedTest {
 
         val result = Async {
             liftV2<String, String, String, Pair<String, String>> { a, b -> a to b }
-                .apV { order.add("first"); Either.Right("A") as Either<Nel<String>, String> }
-                .followedByV { order.add("second"); Either.Right("B") as Either<Nel<String>, String> }
+                .apV { order.add("first"); Either.Right("A") as Either<NonEmptyList<String>, String> }
+                .followedByV { order.add("second"); Either.Right("B") as Either<NonEmptyList<String>, String> }
         }
 
         assertEquals(Either.Right("A" to "B"), result)
@@ -193,14 +192,14 @@ class ValidatedTest {
 
         val result = Async {
             liftV2<String, String, String, Pair<String, String>> { a, b -> a to b }
-                .apV { Either.Left(Nel("left failed")) as Either<Nel<String>, String> }
+                .apV { Either.Left(NonEmptyList("left failed")) as Either<NonEmptyList<String>, String> }
                 .followedByV {
                     secondCalled.complete(true)
-                    Either.Right("should not run") as Either<Nel<String>, String>
+                    Either.Right("should not run") as Either<NonEmptyList<String>, String>
                 }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("left failed"), result.value.toList())
         assertTrue(!secondCalled.isCompleted)
     }
@@ -214,12 +213,12 @@ class ValidatedTest {
         // All three validations fail
         val result = Async {
             liftV3<Err, ValidCard, StockStatus, VerifiedAddress, ValidatedCheckout>(::ValidatedCheckout)
-                .apV { Either.Left(Err.InvalidCard("expired").nel()) }
-                .apV { Either.Left(Err.OutOfStock("sku-123").nel()) }
-                .apV { Either.Left(Err.BadAddress("missing zip").nel()) }
+                .apV { Either.Left(Err.InvalidCard("expired").toNonEmptyList()) }
+                .apV { Either.Left(Err.OutOfStock("sku-123").toNonEmptyList()) }
+                .apV { Either.Left(Err.BadAddress("missing zip").toNonEmptyList()) }
         }
 
-        assertIs<Either.Left<Nel<Err>>>(result)
+        assertIs<Either.Left<NonEmptyList<Err>>>(result)
         assertEquals(3, result.value.size)
         assertIs<Err.InvalidCard>(result.value[0])
         assertIs<Err.OutOfStock>(result.value[1])
@@ -237,7 +236,7 @@ class ValidatedTest {
                 .catching { it.message ?: "unknown" }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("boom"), result.value.toList())
     }
 
@@ -269,15 +268,15 @@ class ValidatedTest {
             liftV2<String, String, String, String> { a, b -> "$a|$b" }
                 .apV {
                     try {
-                        Either.Right(throw RuntimeException("network error")) as Either<Nel<String>, String>
+                        Either.Right(throw RuntimeException("network error")) as Either<NonEmptyList<String>, String>
                     } catch (e: Throwable) {
-                        Either.Left(Nel(e.message ?: "unknown"))
+                        Either.Left(NonEmptyList(e.message ?: "unknown"))
                     }
                 }
-                .apV { Either.Left(Nel.of("validation error")) }
+                .apV { Either.Left(NonEmptyList.of("validation error")) }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("network error", "validation error"), result.value.toList())
     }
 
@@ -298,7 +297,7 @@ class ValidatedTest {
         val result = Async {
             pure(-1).validate<String, Int> { if (it > 0) null else "must be positive" }
         }
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("must be positive"), result.value.toList())
     }
 
@@ -315,7 +314,7 @@ class ValidatedTest {
             }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("negative: -2", "negative: -4"), result.value.toList())
     }
 
@@ -393,7 +392,7 @@ class ValidatedTest {
 
         val result = Async { computations.sequenceV() }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("err1", "err2"), result.value.toList())
     }
 
@@ -414,7 +413,7 @@ class ValidatedTest {
         val latches = (0 until 3).map { CompletableDeferred<Unit>() }
 
         val computations = (0 until 3).map { i ->
-            Computation<Either<Nel<String>, String>> {
+            Computation<Either<NonEmptyList<String>, String>> {
                 latches[i].complete(Unit)
                 latches.awaitOthers(i)
                 Either.Right("v$i")
@@ -450,7 +449,7 @@ class ValidatedTest {
                 }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("first error"), result.value.toList())
         // Second computation was never executed
         assertTrue(!secondCalled.isCompleted)
@@ -463,7 +462,7 @@ class ValidatedTest {
                 .flatMapV { invalid<String, String>("second error") }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("second error"), result.value.toList())
     }
 
@@ -480,11 +479,11 @@ class ValidatedTest {
 
     @Test
     fun `flatMapV composes with apV - dependent validation after parallel`() = runTest {
-        fun validateName(name: String): Computation<Either<Nel<String>, String>> =
+        fun validateName(name: String): Computation<Either<NonEmptyList<String>, String>> =
             if (name.length >= 2) valid(name) else invalid("name too short")
-        fun validateEmail(email: String): Computation<Either<Nel<String>, String>> =
+        fun validateEmail(email: String): Computation<Either<NonEmptyList<String>, String>> =
             if ("@" in email) valid(email) else invalid("invalid email")
-        fun checkNotTaken(name: String, email: String): Computation<Either<Nel<String>, Pair<String, String>>> =
+        fun checkNotTaken(name: String, email: String): Computation<Either<NonEmptyList<String>, Pair<String, String>>> =
             valid(name to email) // pretend it's available
 
         val result = Async {
@@ -505,17 +504,17 @@ class ValidatedTest {
 
     @Test
     fun `complete validation scenario - user registration`() = runTest {
-        fun validateName(name: String): Either<Nel<RegError>, String> =
+        fun validateName(name: String): Either<NonEmptyList<RegError>, String> =
             if (name.length >= 2) Either.Right(name)
-            else Either.Left(RegError.NameTooShort("Name must be >= 2 chars").nel())
+            else Either.Left(RegError.NameTooShort("Name must be >= 2 chars").toNonEmptyList())
 
-        fun validateEmail(email: String): Either<Nel<RegError>, String> =
+        fun validateEmail(email: String): Either<NonEmptyList<RegError>, String> =
             if ("@" in email) Either.Right(email)
-            else Either.Left(RegError.InvalidEmail("Missing @").nel())
+            else Either.Left(RegError.InvalidEmail("Missing @").toNonEmptyList())
 
-        fun validateAge(age: Int): Either<Nel<RegError>, Int> =
+        fun validateAge(age: Int): Either<NonEmptyList<RegError>, Int> =
             if (age >= 18) Either.Right(age)
-            else Either.Left(RegError.TooYoung("Must be >= 18").nel())
+            else Either.Left(RegError.TooYoung("Must be >= 18").toNonEmptyList())
 
         // All invalid
         val allBad = Async {
@@ -525,7 +524,7 @@ class ValidatedTest {
                 .apV { validateAge(15) }
         }
 
-        assertIs<Either.Left<Nel<RegError>>>(allBad)
+        assertIs<Either.Left<NonEmptyList<RegError>>>(allBad)
         assertEquals(3, allBad.value.size)
 
         // All valid
@@ -545,17 +544,17 @@ class ValidatedTest {
 
     @Test
     fun `zipV infers all types - no explicit type params needed`() = runTest {
-        fun validateName(name: String): Either<Nel<String>, String> =
+        fun validateName(name: String): Either<NonEmptyList<String>, String> =
             if (name.length >= 2) Either.Right(name)
-            else Either.Left(Nel("name too short"))
+            else Either.Left(NonEmptyList("name too short"))
 
-        fun validateEmail(email: String): Either<Nel<String>, String> =
+        fun validateEmail(email: String): Either<NonEmptyList<String>, String> =
             if ("@" in email) Either.Right(email)
-            else Either.Left(Nel("invalid email"))
+            else Either.Left(NonEmptyList("invalid email"))
 
-        fun validateAge(age: Int): Either<Nel<String>, Int> =
+        fun validateAge(age: Int): Either<NonEmptyList<String>, Int> =
             if (age >= 18) Either.Right(age)
-            else Either.Left(Nel("too young"))
+            else Either.Left(NonEmptyList("too young"))
 
         // No type params needed — compare with liftV3<String, String, String, Int, User>(::User)
         val result = Async {
@@ -573,13 +572,13 @@ class ValidatedTest {
     fun `zipV accumulates errors from all branches`() = runTest {
         val result = Async {
             zipV(
-                { Either.Left(Nel("err1")) },
-                { Either.Left(Nel("err2")) },
-                { Either.Left(Nel("err3")) },
+                { Either.Left(NonEmptyList("err1")) },
+                { Either.Left(NonEmptyList("err2")) },
+                { Either.Left(NonEmptyList("err3")) },
             ) { a: String, b: String, c: String -> "$a|$b|$c" }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("err1", "err2", "err3"), result.value.toList())
     }
 
@@ -589,7 +588,7 @@ class ValidatedTest {
 
         val result = Async {
             zipV(
-                { latches[0].complete(Unit); latches.awaitOthers(0); Either.Right("A") as Either<Nel<String>, String> },
+                { latches[0].complete(Unit); latches.awaitOthers(0); Either.Right("A") as Either<NonEmptyList<String>, String> },
                 { latches[1].complete(Unit); latches.awaitOthers(1); Either.Right("B") },
                 { latches[2].complete(Unit); latches.awaitOthers(2); Either.Right("C") },
             ) { a, b, c -> "$a|$b|$c" }
@@ -602,12 +601,12 @@ class ValidatedTest {
     fun `zipV2 with two validations`() = runTest {
         val result = Async {
             zipV(
-                { Either.Left(Nel("e1")) },
-                { Either.Left(Nel("e2")) },
+                { Either.Left(NonEmptyList("e1")) },
+                { Either.Left(NonEmptyList("e2")) },
             ) { a: String, b: String -> "$a|$b" }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(listOf("e1", "e2"), result.value.toList())
     }
 
@@ -615,7 +614,7 @@ class ValidatedTest {
     fun `zipV4 with four validations`() = runTest {
         val result = Async {
             zipV(
-                { Either.Right("a") as Either<Nel<String>, String> },
+                { Either.Right("a") as Either<NonEmptyList<String>, String> },
                 { Either.Right("b") },
                 { Either.Right("c") },
                 { Either.Right("d") },
@@ -672,30 +671,30 @@ class ValidatedTest {
     }
 
     // 12 validators — each returns its own type
-    private fun valFirstName(s: String): Either<Nel<OnboardingError>, ValidFirstName> =
-        if (s.length >= 2) Either.Right(ValidFirstName(s)) else Either.Left(Nel(OnboardingError.FirstName("too short")))
-    private fun valLastName(s: String): Either<Nel<OnboardingError>, ValidLastName> =
-        if (s.length >= 2) Either.Right(ValidLastName(s)) else Either.Left(Nel(OnboardingError.LastName("too short")))
-    private fun valEmail(s: String): Either<Nel<OnboardingError>, ValidEmail2> =
-        if ("@" in s) Either.Right(ValidEmail2(s)) else Either.Left(Nel(OnboardingError.Email("missing @")))
-    private fun valPhone(s: String): Either<Nel<OnboardingError>, ValidPhone> =
-        if (s.length >= 8) Either.Right(ValidPhone(s)) else Either.Left(Nel(OnboardingError.Phone("too short")))
-    private fun valPassword(s: String): Either<Nel<OnboardingError>, ValidPassword> =
-        if (s.length >= 8) Either.Right(ValidPassword(s)) else Either.Left(Nel(OnboardingError.Password("too weak")))
-    private fun valBirthDate(s: String): Either<Nel<OnboardingError>, ValidBirthDate> =
-        if (s.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) Either.Right(ValidBirthDate(s)) else Either.Left(Nel(OnboardingError.BirthDate("bad format")))
-    private fun valCountry(s: String): Either<Nel<OnboardingError>, ValidCountry> =
-        if (s.length == 2) Either.Right(ValidCountry(s)) else Either.Left(Nel(OnboardingError.Country("must be ISO 2-letter")))
-    private fun valCity(s: String): Either<Nel<OnboardingError>, ValidCity> =
-        if (s.isNotBlank()) Either.Right(ValidCity(s)) else Either.Left(Nel(OnboardingError.City("blank")))
-    private fun valZipCode(s: String): Either<Nel<OnboardingError>, ValidZipCode> =
-        if (s.matches(Regex("\\d{4,10}"))) Either.Right(ValidZipCode(s)) else Either.Left(Nel(OnboardingError.ZipCode("invalid")))
-    private fun valAddress(s: String): Either<Nel<OnboardingError>, ValidAddress> =
-        if (s.length >= 5) Either.Right(ValidAddress(s)) else Either.Left(Nel(OnboardingError.Address("too short")))
-    private fun valTaxId(s: String): Either<Nel<OnboardingError>, ValidTaxId> =
-        if (s.matches(Regex("\\d{8,12}"))) Either.Right(ValidTaxId(s)) else Either.Left(Nel(OnboardingError.TaxId("invalid format")))
-    private fun valTerms(accepted: Boolean): Either<Nel<OnboardingError>, AcceptedTerms> =
-        if (accepted) Either.Right(AcceptedTerms(true)) else Either.Left(Nel(OnboardingError.Terms("must accept")))
+    private fun valFirstName(s: String): Either<NonEmptyList<OnboardingError>, ValidFirstName> =
+        if (s.length >= 2) Either.Right(ValidFirstName(s)) else Either.Left(NonEmptyList(OnboardingError.FirstName("too short")))
+    private fun valLastName(s: String): Either<NonEmptyList<OnboardingError>, ValidLastName> =
+        if (s.length >= 2) Either.Right(ValidLastName(s)) else Either.Left(NonEmptyList(OnboardingError.LastName("too short")))
+    private fun valEmail(s: String): Either<NonEmptyList<OnboardingError>, ValidEmail2> =
+        if ("@" in s) Either.Right(ValidEmail2(s)) else Either.Left(NonEmptyList(OnboardingError.Email("missing @")))
+    private fun valPhone(s: String): Either<NonEmptyList<OnboardingError>, ValidPhone> =
+        if (s.length >= 8) Either.Right(ValidPhone(s)) else Either.Left(NonEmptyList(OnboardingError.Phone("too short")))
+    private fun valPassword(s: String): Either<NonEmptyList<OnboardingError>, ValidPassword> =
+        if (s.length >= 8) Either.Right(ValidPassword(s)) else Either.Left(NonEmptyList(OnboardingError.Password("too weak")))
+    private fun valBirthDate(s: String): Either<NonEmptyList<OnboardingError>, ValidBirthDate> =
+        if (s.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) Either.Right(ValidBirthDate(s)) else Either.Left(NonEmptyList(OnboardingError.BirthDate("bad format")))
+    private fun valCountry(s: String): Either<NonEmptyList<OnboardingError>, ValidCountry> =
+        if (s.length == 2) Either.Right(ValidCountry(s)) else Either.Left(NonEmptyList(OnboardingError.Country("must be ISO 2-letter")))
+    private fun valCity(s: String): Either<NonEmptyList<OnboardingError>, ValidCity> =
+        if (s.isNotBlank()) Either.Right(ValidCity(s)) else Either.Left(NonEmptyList(OnboardingError.City("blank")))
+    private fun valZipCode(s: String): Either<NonEmptyList<OnboardingError>, ValidZipCode> =
+        if (s.matches(Regex("\\d{4,10}"))) Either.Right(ValidZipCode(s)) else Either.Left(NonEmptyList(OnboardingError.ZipCode("invalid")))
+    private fun valAddress(s: String): Either<NonEmptyList<OnboardingError>, ValidAddress> =
+        if (s.length >= 5) Either.Right(ValidAddress(s)) else Either.Left(NonEmptyList(OnboardingError.Address("too short")))
+    private fun valTaxId(s: String): Either<NonEmptyList<OnboardingError>, ValidTaxId> =
+        if (s.matches(Regex("\\d{8,12}"))) Either.Right(ValidTaxId(s)) else Either.Left(NonEmptyList(OnboardingError.TaxId("invalid format")))
+    private fun valTerms(accepted: Boolean): Either<NonEmptyList<OnboardingError>, AcceptedTerms> =
+        if (accepted) Either.Right(AcceptedTerms(true)) else Either.Left(NonEmptyList(OnboardingError.Terms("must accept")))
 
     @Test
     fun `zipV12 - all valid - full user onboarding`() = runTest {
@@ -752,7 +751,7 @@ class ValidatedTest {
             }
         }
 
-        assertIs<Either.Left<Nel<OnboardingError>>>(result)
+        assertIs<Either.Left<NonEmptyList<OnboardingError>>>(result)
         assertEquals(12, result.value.size)
         // Verify error order matches parameter order
         assertIs<OnboardingError.FirstName>(result.value[0])
@@ -790,7 +789,7 @@ class ValidatedTest {
             }
         }
 
-        assertIs<Either.Left<Nel<OnboardingError>>>(result)
+        assertIs<Either.Left<NonEmptyList<OnboardingError>>>(result)
         assertEquals(5, result.value.size)
         assertIs<OnboardingError.LastName>(result.value[0])
         assertIs<OnboardingError.Phone>(result.value[1])
@@ -876,7 +875,7 @@ class ValidatedTest {
             }
         }
 
-        assertIs<Either.Left<Nel<OnboardingError>>>(result)
+        assertIs<Either.Left<NonEmptyList<OnboardingError>>>(result)
         assertEquals(6, result.value.size)  // all 6 phase-1 errors accumulated
         assertEquals(false, phase2Ran)      // phase 2 was short-circuited
     }
@@ -904,7 +903,7 @@ class ValidatedTest {
             }
         }
 
-        assertIs<Either.Left<Nel<OnboardingError>>>(result)
+        assertIs<Either.Left<NonEmptyList<OnboardingError>>>(result)
         assertEquals(6, result.value.size)  // all 6 phase-2 errors accumulated
         assertIs<OnboardingError.Country>(result.value[0])
         assertIs<OnboardingError.Terms>(result.value[5])

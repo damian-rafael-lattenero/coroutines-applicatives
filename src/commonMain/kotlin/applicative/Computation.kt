@@ -494,6 +494,58 @@ fun <A> Computation<A>.memoize(): Computation<A> {
     }
 }
 
+/**
+ * Like [memoize], but **does not cache failures** — if the first execution fails,
+ * the next caller retries the original computation.
+ *
+ * This is the production-friendly variant: transient failures (network timeouts,
+ * rate limits) don't permanently poison the cache. Once the computation succeeds,
+ * all subsequent calls return the cached result instantly.
+ *
+ * Thread-safe: uses [kotlinx.coroutines.sync.Mutex] to ensure only one caller
+ * executes the original computation at a time.
+ *
+ * ```
+ * val config = Computation { fetchRemoteConfig() }.memoizeOnSuccess()
+ *
+ * Async {
+ *     lift2(::combine)
+ *         .ap { config }   // first call fetches
+ *         .ap { config }   // reuses cached result (or retries if first failed)
+ * }
+ * ```
+ */
+fun <A> Computation<A>.memoizeOnSuccess(): Computation<A> =
+    MemoizedOnSuccess(this)
+
+private class MemoizedOnSuccess<A>(private val original: Computation<A>) : Computation<A> {
+    private val lock = kotlinx.coroutines.sync.Mutex()
+    @Volatile private var cached: Any? = UNSET
+
+    override suspend fun CoroutineScope.execute(): A {
+        @Suppress("UNCHECKED_CAST")
+        val c = cached
+        if (c !== UNSET) return c as A
+        lock.lock()
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val c2 = cached
+            if (c2 !== UNSET) return c2 as A
+            val value = with(original) { execute() }
+            cached = value
+            return value
+        } catch (e: Throwable) {
+            throw e  // failure NOT cached — next caller retries
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    companion object {
+        private val UNSET = Any()
+    }
+}
+
 // ── DSL entry point ─────────────────────────────────────────────────────
 
 /**

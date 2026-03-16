@@ -33,39 +33,39 @@ data class User(val name: ValidName, val email: ValidEmail, val age: ValidAge, v
 
 // ── Validation functions (simulate async checks) ────────────────────────
 
-suspend fun validateName(name: String): Either<Nel<RegError>, ValidName> {
+suspend fun validateName(name: String): Either<NonEmptyList<RegError>, ValidName> {
     delay(50)
     return if (name.length >= 2) Either.Right(ValidName(name))
-    else Either.Left(RegError.InvalidName("Name must be at least 2 characters").nel())
+    else Either.Left(RegError.InvalidName("Name must be at least 2 characters").toNonEmptyList())
 }
 
-suspend fun validateEmail(email: String): Either<Nel<RegError>, ValidEmail> {
+suspend fun validateEmail(email: String): Either<NonEmptyList<RegError>, ValidEmail> {
     delay(60)
     return if ("@" in email && "." in email) Either.Right(ValidEmail(email))
-    else Either.Left(RegError.InvalidEmail("Invalid email format").nel())
+    else Either.Left(RegError.InvalidEmail("Invalid email format").toNonEmptyList())
 }
 
-suspend fun validateAge(age: Int): Either<Nel<RegError>, ValidAge> {
+suspend fun validateAge(age: Int): Either<NonEmptyList<RegError>, ValidAge> {
     delay(30)
     return if (age in 13..120) Either.Right(ValidAge(age))
-    else Either.Left(RegError.InvalidAge("Age must be between 13 and 120").nel())
+    else Either.Left(RegError.InvalidAge("Age must be between 13 and 120").toNonEmptyList())
 }
 
-suspend fun validatePassword(password: String): Either<Nel<RegError>, ValidPassword> {
+suspend fun validatePassword(password: String): Either<NonEmptyList<RegError>, ValidPassword> {
     delay(40)
     val errors = mutableListOf<RegError>()
     if (password.length < 8) errors.add(RegError.WeakPassword("Password must be at least 8 characters"))
     if (!password.any { it.isDigit() }) errors.add(RegError.WeakPassword("Password must contain a digit"))
     if (!password.any { it.isUpperCase() }) errors.add(RegError.WeakPassword("Password must contain an uppercase letter"))
     return if (errors.isEmpty()) Either.Right(ValidPassword(password))
-    else Either.Left(Nel(errors.first(), errors.drop(1)))
+    else Either.Left(NonEmptyList(errors.first(), errors.drop(1)))
 }
 
-suspend fun checkUsernameAvailable(username: String): Either<Nel<RegError>, ValidUsername> {
+suspend fun checkUsernameAvailable(username: String): Either<NonEmptyList<RegError>, ValidUsername> {
     delay(100) // simulate DB lookup
     val taken = setOf("admin", "root", "alice")
     return if (username.lowercase() !in taken) Either.Right(ValidUsername(username))
-    else Either.Left(RegError.UsernameTaken("Username '$username' is already taken").nel())
+    else Either.Left(RegError.UsernameTaken("Username '$username' is already taken").toNonEmptyList())
 }
 
 suspend fun main() {

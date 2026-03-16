@@ -1,8 +1,6 @@
 package applicative
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
@@ -378,20 +376,20 @@ class CompositionProofTest {
     fun `zipV with timeout - slow validator gets timeout error`() = runTest {
         val result = Async {
             zipV(
-                { delay(20); Either.Right("valid-name") as Either<Nel<String>, String> },
+                { delay(20); Either.Right("valid-name") as Either<NonEmptyList<String>, String> },
                 {
                     // Slow validator with timeout → catches timeout as validation error
                     try {
                         kotlinx.coroutines.withTimeout(40) { delay(500); Either.Right("email") }
                     } catch (_: Throwable) {
-                        Either.Left(Nel("email validation timed out"))
+                        Either.Left(NonEmptyList("email validation timed out"))
                     }
                 },
-                { delay(20); Either.Left(Nel("age too young")) },
+                { delay(20); Either.Left(NonEmptyList("age too young")) },
             ) { name, email, age -> "$name|$email|$age" }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         // Both the timeout error and the age error should be accumulated
         assertEquals(2, result.value.size)
         assertTrue(result.value.toList().any { it.contains("timed out") })
@@ -448,14 +446,14 @@ class CompositionProofTest {
         val result = Async {
             // Phase 1: 3 parallel validators @ 30ms
             zipV(
-                { delay(30); Either.Right("alice") as Either<Nel<String>, String> },
+                { delay(30); Either.Right("alice") as Either<NonEmptyList<String>, String> },
                 { delay(30); Either.Right("alice@test.com") },
                 { delay(30); Either.Right(25) },
             ) { name, email, age -> Triple(name, email, age) }
             // Phase 2: 2 parallel validators @ 40ms — only runs if phase 1 passes
             .flatMapV { (name, email, _) ->
                 zipV(
-                    { delay(40); Either.Right("$name-available") as Either<Nel<String>, String> },
+                    { delay(40); Either.Right("$name-available") as Either<NonEmptyList<String>, String> },
                     { delay(40); Either.Right("$email-verified") },
                 ) { avail, verified -> "$avail|$verified" }
             }
@@ -473,19 +471,19 @@ class CompositionProofTest {
 
         val result = Async {
             zipV(
-                { delay(30); Either.Left(Nel("name-bad")) as Either<Nel<String>, String> },
-                { delay(30); Either.Left(Nel("email-bad")) },
+                { delay(30); Either.Left(NonEmptyList("name-bad")) as Either<NonEmptyList<String>, String> },
+                { delay(30); Either.Left(NonEmptyList("email-bad")) },
             ) { name, email -> name to email }
             .flatMapV { _ ->
                 phase2Ran = true
                 zipV(
-                    { delay(100); Either.Right("a") as Either<Nel<String>, String> },
+                    { delay(100); Either.Right("a") as Either<NonEmptyList<String>, String> },
                     { delay(100); Either.Right("b") },
                 ) { a, b -> "$a|$b" }
             }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(2, result.value.size) // both phase-1 errors accumulated
         assertEquals(false, phase2Ran)
         // Only phase 1 ran (30ms). Phase 2's 100ms was saved.
@@ -504,12 +502,12 @@ class CompositionProofTest {
                 Computation {
                     delay(30)
                     if (name.length >= 3) Either.Right(name.uppercase())
-                    else Either.Left(Nel("$name too short"))
+                    else Either.Left(NonEmptyList("$name too short"))
                 }
             }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(2, result.value.size) // "b" and "d" fail
         assertEquals(30, currentTime,
             "All 5 validators run in parallel: 30ms. Got ${currentTime}ms")

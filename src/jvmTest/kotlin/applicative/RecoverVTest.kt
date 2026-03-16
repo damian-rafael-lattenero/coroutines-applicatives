@@ -21,12 +21,12 @@ class RecoverVTest {
     @Test
     fun `recoverV converts exception to validation error`() = runTest {
         val result = Async {
-            Computation<Either<Nel<String>, Int>> {
+            Computation<Either<NonEmptyList<String>, Int>> {
                 throw RuntimeException("boom")
             }.recoverV { e -> "caught: ${e.message}" }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(1, result.value.size)
         assertEquals("caught: boom", result.value[0])
     }
@@ -38,7 +38,7 @@ class RecoverVTest {
     @Test
     fun `recoverV preserves success`() = runTest {
         val result = Async {
-            Computation<Either<Nel<String>, Int>> {
+            Computation<Either<NonEmptyList<String>, Int>> {
                 Either.Right(42)
             }.recoverV { e -> "should not happen: ${e.message}" }
         }
@@ -54,7 +54,7 @@ class RecoverVTest {
     fun `recoverV does not catch CancellationException`() = runTest {
         val result = runCatching {
             Async {
-                Computation<Either<Nel<String>, Int>> {
+                Computation<Either<NonEmptyList<String>, Int>> {
                     throw CancellationException("cancelled")
                 }.recoverV { "should not catch" }
             }
@@ -76,21 +76,21 @@ class RecoverVTest {
 
         val result = Async {
             // Build each branch as a Computation so we can apply recoverV to branch B
-            val branchA = Computation<Either<Nel<String>, String>> {
+            val branchA = Computation<Either<NonEmptyList<String>, String>> {
                 started[0].complete(Unit)
                 started[1].await(); started[2].await()
-                Either.Left(Nel("err-A"))
+                Either.Left(NonEmptyList("err-A"))
             }
-            val branchB = Computation<Either<Nel<String>, String>> {
+            val branchB = Computation<Either<NonEmptyList<String>, String>> {
                 started[1].complete(Unit)
                 started[0].await(); started[2].await()
                 throw RuntimeException("err-B")
             }.recoverV { e -> "recovered: ${e.message}" }
 
-            val branchC = Computation<Either<Nel<String>, String>> {
+            val branchC = Computation<Either<NonEmptyList<String>, String>> {
                 started[2].complete(Unit)
                 started[0].await(); started[1].await()
-                Either.Left(Nel("err-C"))
+                Either.Left(NonEmptyList("err-C"))
             }
 
             liftV3<String, String, String, String, String> { a, b, c -> "$a|$b|$c" }
@@ -101,7 +101,7 @@ class RecoverVTest {
 
         // All 3 branches ran concurrently (barrier proof — would deadlock otherwise)
         // All 3 errors accumulated instead of B's exception cancelling A and C
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(3, result.value.size)
         assertEquals("err-A", result.value[0])
         assertEquals("recovered: err-B", result.value[1])
@@ -115,18 +115,18 @@ class RecoverVTest {
     @Test
     fun `recoverV inside zipV - timing proof that siblings are not cancelled`() = runTest {
         val result = Async {
-            val branchA = Computation<Either<Nel<String>, String>> {
+            val branchA = Computation<Either<NonEmptyList<String>, String>> {
                 delay(50)
-                Either.Left(Nel("timeout-A"))
+                Either.Left(NonEmptyList("timeout-A"))
             }
-            val branchB = Computation<Either<Nel<String>, String>> {
+            val branchB = Computation<Either<NonEmptyList<String>, String>> {
                 delay(50)
                 throw RuntimeException("crash-B")
             }.recoverV { e -> "recovered: ${e.message}" }
 
-            val branchC = Computation<Either<Nel<String>, String>> {
+            val branchC = Computation<Either<NonEmptyList<String>, String>> {
                 delay(50)
-                Either.Left(Nel("timeout-C"))
+                Either.Left(NonEmptyList("timeout-C"))
             }
 
             liftV3<String, String, String, String, String> { a, b, c -> "$a|$b|$c" }
@@ -141,7 +141,7 @@ class RecoverVTest {
             "Expected 50ms virtual time (parallel). Got ${currentTime}ms — " +
             "if siblings were cancelled, timing or error count would differ")
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(3, result.value.size)
         assertEquals("timeout-A", result.value[0])
         assertEquals("recovered: crash-B", result.value[1])
@@ -156,17 +156,17 @@ class RecoverVTest {
     @Test
     fun `recoverV with liftV+apV chain - exception in one branch accumulates with validation errors from others`() = runTest {
         val result = Async {
-            val branchA = Computation<Either<Nel<String>, String>> {
-                Either.Left(Nel("validation-err-A"))
+            val branchA = Computation<Either<NonEmptyList<String>, String>> {
+                Either.Left(NonEmptyList("validation-err-A"))
             }
 
             // This branch throws, but recoverV converts it to a validation error
-            val branchB = Computation<Either<Nel<String>, String>> {
+            val branchB = Computation<Either<NonEmptyList<String>, String>> {
                 throw IllegalStateException("service unavailable")
             }.recoverV { e -> "exception: ${e.message}" }
 
-            val branchC = Computation<Either<Nel<String>, String>> {
-                Either.Left(Nel("validation-err-C"))
+            val branchC = Computation<Either<NonEmptyList<String>, String>> {
+                Either.Left(NonEmptyList("validation-err-C"))
             }
 
             liftV3<String, String, String, String, String> { a, b, c -> "$a|$b|$c" }
@@ -175,7 +175,7 @@ class RecoverVTest {
                 .apV(branchC)
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(3, result.value.size)
         assertEquals("validation-err-A", result.value[0])
         assertEquals("exception: service unavailable", result.value[1])
@@ -198,7 +198,7 @@ class RecoverVTest {
     @Test
     fun `recoverV maps exception to domain error type`() = runTest {
         val result = Async {
-            Computation<Either<Nel<DomainError>, String>> {
+            Computation<Either<NonEmptyList<DomainError>, String>> {
                 throw java.net.SocketTimeoutException("Connection timed out after 5000ms")
             }.recoverV { e ->
                 // Verify we receive the actual exception and can inspect it
@@ -209,7 +209,7 @@ class RecoverVTest {
             }
         }
 
-        assertIs<Either.Left<Nel<DomainError>>>(result)
+        assertIs<Either.Left<NonEmptyList<DomainError>>>(result)
         assertEquals(1, result.value.size)
         val error = result.value[0]
         assertIs<DomainError.NetworkFailure>(error)
@@ -229,13 +229,13 @@ class RecoverVTest {
             valid<String, Int>(42)
                 // Phase 2: flatMapV chains into a computation that throws
                 .flatMapV { n ->
-                    Computation<Either<Nel<String>, String>> {
+                    Computation<Either<NonEmptyList<String>, String>> {
                         throw RuntimeException("phase 2 failed for n=$n")
                     }.recoverV { e -> "phase2-error: ${e.message}" }
                 }
         }
 
-        assertIs<Either.Left<Nel<String>>>(result)
+        assertIs<Either.Left<NonEmptyList<String>>>(result)
         assertEquals(1, result.value.size)
         assertEquals("phase2-error: phase 2 failed for n=42", result.value[0])
     }

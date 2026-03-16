@@ -4,7 +4,7 @@
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
 [![Coroutines](https://img.shields.io/badge/Coroutines-1.9.0-blue.svg)](https://github.com/Kotlin/kotlinx.coroutines)
-[![Tests](https://img.shields.io/badge/Tests-517%20passing-brightgreen.svg)](#empirical-data)
+[![Tests](https://img.shields.io/badge/Tests-565%20passing-brightgreen.svg)](#empirical-data)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Multiplatform](https://img.shields.io/badge/Multiplatform-JVM%20%7C%20JS%20%7C%20Native-orange.svg)](#)
 [![Lines](https://img.shields.io/badge/Hand--written-2.5k%20lines-informational.svg)](#)
@@ -153,11 +153,11 @@ val checkout = Async {
 
 ### Scenario: Parallel Validation with Error Accumulation
 
-**Before — Raw Coroutines (impossible):**
+**Before — Raw Coroutines (impractical without manual error collection):**
 
 ```kotlin
-// Can't do parallel error accumulation with structured concurrency.
-// First failure cancels all siblings. You only get ONE error.
+// Structured concurrency cancels siblings on first failure.
+// You'd need supervisorScope + manual Result wrapping to collect all errors.
 coroutineScope {
     val a = async { validateName(input) }    // if this throws...
     val b = async { validateEmail(input) }   // ...this gets cancelled
@@ -174,7 +174,7 @@ val result = Async {
         { validateEmail(input) },
     ) { name, email -> UserData(name, email) }
 }
-// Both errors collected. Left(Nel(NameError, EmailError))
+// Both errors collected. Left(NonEmptyList(NameError, EmailError))
 ```
 
 ---
@@ -204,7 +204,7 @@ val result = Async {
         UserRegistration(name, email, phone, pass, birth, country, city, zip, addr, tax, terms, captcha)
     }
 }
-// 7 of 12 fail? → Left(Nel(NameTooShort, InvalidEmail, ..., CaptchaExpired))
+// 7 of 12 fail? → Left(NonEmptyList(NameTooShort, InvalidEmail, ..., CaptchaExpired))
 // All pass?     → Right(UserRegistration(...))
 // Scales to 22 validators. Full type inference.
 ```
@@ -229,11 +229,24 @@ val result = Async {
 Stack combinators for defense in depth:
 
 ```kotlin
+val breaker = CircuitBreaker(maxFailures = 5, resetTimeout = 30.seconds)
+
 Computation { fetchUser() }
     .timeout(500.milliseconds)
+    .withCircuitBreaker(breaker)
     .retry(Schedule.recurs<Throwable>(3) and Schedule.exponential(100.milliseconds))
     .recover { UserProfile.cached() }
     .traced("fetchUser", tracer)
+// timeout → circuit breaker → retry → recover → trace. All composable.
+```
+
+Short-circuit guards inside computation chains:
+
+```kotlin
+Computation { fetchUser(id) }
+    .ensure({ InactiveUserException(id) }) { it.isActive }         // throws if inactive
+    .ensureNotNull({ ProfileMissing(id) }) { it.profile }          // throws if null
+    .flatMap { profile -> loadDashboard(profile) }
 ```
 
 ### 3. Resource Safety with `bracket` and `Resource`
@@ -441,6 +454,9 @@ val result = Async {
 | Resource cleanup in parallel | Manual try/finally spaghetti | `bracket` / `Resource` — guaranteed |
 | First-to-succeed racing | Complex `select` clauses | `raceN(...)` — losers auto-cancelled |
 | Transaction commit/rollback | Manual ExitCase tracking | `bracketCase` — automatic |
+| Cascading failures to downstream | Manual circuit breaker impl | `CircuitBreaker` — 3 states, composable |
+| Null/predicate guards in chains | `if` checks + early returns | `.ensure` / `.ensureNotNull` — declarative |
+| Transient-failure caching | `memoize()` caches errors forever | `.memoizeOnSuccess()` — retries on failure |
 
 ---
 
@@ -600,7 +616,7 @@ Functor, applicative, and monad laws verified with random inputs:
 
 Source: [`ApplicativeLawsTest.kt`](src/jvmTest/kotlin/applicative/ApplicativeLawsTest.kt)
 
-**517 tests across 30 suites. All passing.**
+**565 tests across 34 suites. All passing.**
 
 ---
 
@@ -692,6 +708,9 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `Computation.failed(error)` | Immediately failing computation | — |
 | `Computation.defer { }` | Lazy computation construction | — |
 | `.memoize()` | Cache result, execute once (thread-safe via `Mutex`) | — |
+| `.memoizeOnSuccess()` | Like `memoize` but retries on failure — production-safe | — |
+| `.ensure(error) { pred }` | Short-circuit guard: throws if predicate fails | — |
+| `.ensureNotNull(error) { extract }` | Extract non-null or throw — avoids nested null checks | — |
 | `.on(context)` / `.named(name)` | Dispatcher / coroutine name | — |
 | `.void()` / `.tap { }` | Discard result / side-effect | — |
 | `.attempt()` | Catch to `Either<Throwable, A>` | — |
@@ -725,6 +744,8 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `Schedule.doWhile` / `.jittered` / `.withMaxDuration` | Filters and limits |
 | `s1 and s2` / `s1 or s2` | Schedule composition |
 | `schedule.fold(init) { acc, a -> }` | Accumulate values across retries |
+| `CircuitBreaker(maxFailures, resetTimeout)` | Protect downstream from cascading failures |
+| `.withCircuitBreaker(breaker)` | Wrap computation with circuit breaker |
 
 ### Validation (Error Accumulation)
 
@@ -773,14 +794,14 @@ Full working examples in [`/examples`](examples/):
 - **[dashboard-aggregator](examples/dashboard-aggregator/)** — 14-service BFF
 - **[validated-registration](examples/validated-registration/)** — 12-field parallel validation
 
-Arrow interop module: [`/arrow-interop`](arrow-interop/) — optional bridges for `Either`, `Nel`, `parZip`.
+Arrow interop module: [`/arrow-interop`](arrow-interop/) — optional bridges for `Either`, `NonEmptyList`, `parZip`.
 
 ---
 
 ## Building
 
 ```bash
-./gradlew jvmTest              # 517 tests
+./gradlew jvmTest              # 549 tests
 ./gradlew :arrow-interop:test  # Arrow interop tests
 ./gradlew :benchmarks:jmh      # JMH benchmarks
 ./gradlew dokkaHtml             # API docs

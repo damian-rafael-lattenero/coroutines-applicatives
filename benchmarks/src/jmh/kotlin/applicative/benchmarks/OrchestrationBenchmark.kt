@@ -51,9 +51,9 @@ open class OrchestrationBenchmark {
         label: String,
         delayMs: Long,
         pass: Boolean,
-    ): Either<Nel<String>, String> {
+    ): Either<NonEmptyList<String>, String> {
         delay(delayMs)
-        return if (pass) Either.Right(label) else Either.Left("$label-failed".nel())
+        return if (pass) Either.Right(label) else Either.Left("$label-failed".toNonEmptyList())
     }
 
     /** Arrow-compatible validator — returns Arrow Either. */
@@ -364,7 +364,7 @@ open class OrchestrationBenchmark {
         val address = validate("address", 40, pass = true)
         val age = validate("age", 40, pass = true)
         val results = listOf(card, stock, address, age)
-        val errors = results.filterIsInstance<Either.Left<Nel<String>>>()
+        val errors = results.filterIsInstance<Either.Left<NonEmptyList<String>>>()
         if (errors.isEmpty()) {
             results.map { (it as Either.Right).value }.joinToString("|")
         } else {

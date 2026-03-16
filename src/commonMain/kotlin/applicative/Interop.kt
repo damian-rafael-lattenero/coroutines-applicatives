@@ -96,7 +96,7 @@ fun <E, A> Either<E, A>.toResult(mapError: (E) -> Throwable): Result<A> = when (
  *     userResult.toValidated { AppError.FetchFailed(it.message ?: "unknown") }
  * ```
  */
-fun <E, A> Result<A>.toValidated(onError: (Throwable) -> E): Computation<Either<Nel<E>, A>> =
+fun <E, A> Result<A>.toValidated(onError: (Throwable) -> E): Computation<Either<NonEmptyList<E>, A>> =
     fold(
         onSuccess = { valid(it) },
         onFailure = { invalid(onError(it)) },
