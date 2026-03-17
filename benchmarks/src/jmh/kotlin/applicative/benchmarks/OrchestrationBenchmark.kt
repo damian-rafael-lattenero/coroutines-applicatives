@@ -517,4 +517,275 @@ open class OrchestrationBenchmark {
         runBlocking { Async { m } } // warm the cache
         m
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 10: MemoizeOnSuccess — transient failure retry vs permanent cache
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun memoizeOnSuccess_cold_miss(): String = runBlocking {
+        val m = Computation { compute(1) }.memoizeOnSuccess()
+        Async { m }
+    }
+
+    @Benchmark
+    fun memoizeOnSuccess_warm_hit(): String = runBlocking {
+        Async { memoizedOnSuccessForBenchmark }
+    }
+
+    private val memoizedOnSuccessForBenchmark: Computation<String> = run {
+        val m = Computation { compute(1) }.memoizeOnSuccess()
+        runBlocking { Async { m } }
+        m
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 11: Bracket / Resource overhead
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun bracket_overhead(): String = runBlocking {
+        Async {
+            bracket(
+                acquire = { "resource" },
+                use = { r -> Computation { "$r-used" } },
+                release = { },
+            )
+        }
+    }
+
+    @Benchmark
+    fun bracket_latency_with_parallel(): String = runBlocking {
+        Async {
+            bracket(
+                acquire = { "conn" },
+                use = { conn ->
+                    lift3 { a: String, b: String, c: String -> "$a|$b|$c" }
+                        .ap { networkCall("$conn-q1", 50) }
+                        .ap { networkCall("$conn-q2", 50) }
+                        .ap { networkCall("$conn-q3", 50) }
+                },
+                release = { },
+            )
+        }
+    }
+
+    @Benchmark
+    fun resource_zip_overhead(): String = runBlocking {
+        val r1 = Resource({ "db" }, { })
+        val r2 = Resource({ "cache" }, { })
+        val r3 = Resource({ "http" }, { })
+        Resource.zip(r1, r2, r3) { a, b, c -> "$a|$b|$c" }.use { it }
+    }
+
+    @Benchmark
+    fun resource_zip_latency(): String = runBlocking {
+        val r1 = Resource({ networkCall("db", 50) }, { })
+        val r2 = Resource({ networkCall("cache", 50) }, { })
+        Resource.zip(r1, r2) { a, b -> "$a|$b" }.use { it }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 12: CircuitBreaker overhead
+    // ════════════════════════════════════════════════════════════════════════
+
+    private val closedBreaker = CircuitBreaker(
+        maxFailures = 5,
+        resetTimeout = kotlin.time.Duration.parse("30s"),
+    )
+
+    @Benchmark
+    fun circuitBreaker_closed_overhead(): String = runBlocking {
+        Async {
+            Computation { compute(1) }.withCircuitBreaker(closedBreaker)
+        }
+    }
+
+    @Benchmark
+    fun circuitBreaker_closed_latency(): String = runBlocking {
+        Async {
+            Computation { networkCall("service", 50) }.withCircuitBreaker(closedBreaker)
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 13: Validated apV/followedByV with mixed results
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun apV_latency_all_pass(): String = runBlocking {
+        val result = Async {
+            liftV4<String, String, String, String, String, String> { a, b, c, d ->
+                "$a|$b|$c|$d"
+            }
+                .apV { validate("card", 40, pass = true) }
+                .apV { validate("stock", 40, pass = true) }
+                .apV { validate("address", 40, pass = true) }
+                .apV { validate("age", 40, pass = true) }
+        }
+        when (result) {
+            is Either.Right -> result.value
+            is Either.Left -> "errors:${result.value}"
+        }
+    }
+
+    @Benchmark
+    fun apV_latency_all_fail(): String = runBlocking {
+        val result = Async {
+            liftV4<String, String, String, String, String, String> { a, b, c, d ->
+                "$a|$b|$c|$d"
+            }
+                .apV { validate("card", 40, pass = false) }
+                .apV { validate("stock", 40, pass = false) }
+                .apV { validate("address", 40, pass = false) }
+                .apV { validate("age", 40, pass = false) }
+        }
+        when (result) {
+            is Either.Right -> result.value
+            is Either.Left -> "errors:${result.value.size}"
+        }
+    }
+
+    @Benchmark
+    fun zipV_latency_mixed_results(): String = runBlocking {
+        val result = Async {
+            zipV(
+                { validate("card", 40, pass = true) },
+                { validate("stock", 40, pass = false) },
+                { validate("address", 40, pass = true) },
+                { validate("age", 40, pass = false) },
+            ) { a, b, c, d -> "$a|$b|$c|$d" }
+        }
+        when (result) {
+            is Either.Right -> result.value
+            is Either.Left -> "errors:${result.value.size}"
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 14: TraverseV — parallel validation over collections
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun traverseV_10_items_all_pass(): String = runBlocking {
+        val result = Async {
+            (1..10).toList().traverseV { i ->
+                Computation<Either<NonEmptyList<String>, String>> { validate("item-$i", 30, pass = true) }
+            }
+        }
+        when (result) {
+            is Either.Right -> "ok:${result.value.size}"
+            is Either.Left -> "errors:${result.value.size}"
+        }
+    }
+
+    @Benchmark
+    fun traverseV_10_items_half_fail(): String = runBlocking {
+        val result = Async {
+            (1..10).toList().traverseV { i ->
+                Computation<Either<NonEmptyList<String>, String>> { validate("item-$i", 30, pass = i % 2 == 0) }
+            }
+        }
+        when (result) {
+            is Either.Right -> "ok:${result.value.size}"
+            is Either.Left -> "errors:${result.value.size}"
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 15: computation {} builder overhead
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun computation_builder_overhead(): String = runBlocking {
+        Async {
+            computation {
+                val a = bind { compute(1) }
+                val b = bind { compute(2) }
+                val c = bind { compute(3) }
+                "$a|$b|$c"
+            }
+        }
+    }
+
+    @Benchmark
+    fun computation_builder_latency(): String = runBlocking {
+        Async {
+            computation {
+                val a = bind { networkCall("user", 50) }
+                val b = bind { networkCall("cart-${a.length}", 50) }
+                val c = bind { networkCall("recs-${b.length}", 50) }
+                "$a|$b|$c"
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 16: raceEither — heterogeneous racing
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun raceEither_latency(): String = runBlocking {
+        val result = Async {
+            raceEither(
+                Computation { networkCall("cache", 30) },
+                Computation { networkCall("network", 100) },
+            )
+        }
+        when (result) {
+            is Either.Left -> "cache:${result.value}"
+            is Either.Right -> "network:${result.value}"
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 17: timeoutRace — parallel timeout with eager fallback
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun timeoutRace_primary_wins(): String = runBlocking {
+        Async {
+            Computation { networkCall("primary", 30) }
+                .timeoutRace(kotlin.time.Duration.parse("100ms"), Computation { networkCall("fallback", 80) })
+        }
+    }
+
+    @Benchmark
+    fun timeoutRace_fallback_wins(): String = runBlocking {
+        Async {
+            Computation { networkCall("primary", 200) }
+                .timeoutRace(kotlin.time.Duration.parse("50ms"), Computation { networkCall("fallback", 30) })
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 18: Schedule.fold / collect — stateful schedule overhead
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun schedule_fold_overhead(): String = runBlocking {
+        val policy = Schedule.recurs<Throwable>(3)
+            .fold(0) { count, _ -> count + 1 }
+        var attempts = 0
+        Async {
+            Computation {
+                attempts++
+                if (attempts < 3) error("flaky")
+                "ok"
+            }.retry(policy)
+        }
+    }
+
+    @Benchmark
+    fun schedule_jittered_exponential(): String = runBlocking {
+        Async {
+            Computation { networkCall("service", 30) }
+                .retry(
+                    Schedule.recurs<Throwable>(3)
+                        .and(Schedule.exponential(kotlin.time.Duration.parse("1ms")))
+                        .jittered()
+                )
+                .recover { "fallback" }
+        }
+    }
 }

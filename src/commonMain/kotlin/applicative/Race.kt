@@ -173,3 +173,19 @@ fun <A, B> raceEither(fa: Computation<A>, fb: Computation<B>): Computation<Eithe
         }
     }
 }
+
+// ── extension: race as instance method ──────────────────────────────────
+
+/**
+ * Races this computation against [other]; the first to **succeed** wins,
+ * the loser is cancelled.
+ *
+ * Extension sugar for `race(this, other)`.
+ *
+ * ```
+ * Computation { fetchFromPrimary() }
+ *     .raceAgainst(Computation { fetchFromReplica() })
+ * ```
+ */
+fun <A> Computation<A>.raceAgainst(other: Computation<A>): Computation<A> =
+    race(this, other)

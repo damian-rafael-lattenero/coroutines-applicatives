@@ -154,3 +154,6 @@ fun <E, A, B> NonEmptyList<A>.traverseV(
     (this as List<A>).traverseV(concurrency, f).map { either ->
         either.map { list -> NonEmptyList(list[0], list.subList(1, list.size)) }
     }
+
+/** Convenience alias — shorter than [NonEmptyList] in validated signatures. */
+typealias Nel<A> = NonEmptyList<A>
