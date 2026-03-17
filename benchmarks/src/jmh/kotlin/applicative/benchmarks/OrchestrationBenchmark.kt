@@ -788,4 +788,264 @@ open class OrchestrationBenchmark {
                 .recover { "fallback" }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 19: bracketCase — outcome-aware release overhead
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun bracketCase_overhead(): String = runBlocking {
+        Async {
+            bracketCase(
+                acquire = { "resource" },
+                use = { r -> Computation { "$r-used" } },
+                release = { _, case ->
+                    when (case) {
+                        is ExitCase.Completed<*> -> {} // commit
+                        else -> {} // rollback
+                    }
+                },
+            )
+        }
+    }
+
+    @Benchmark
+    fun bracketCase_latency_with_parallel(): String = runBlocking {
+        Async {
+            bracketCase(
+                acquire = { networkCall("conn", 10) },
+                use = { conn ->
+                    lift3 { a: String, b: String, c: String -> "$a|$b|$c" }
+                        .ap { networkCall("$conn-q1", 50) }
+                        .ap { networkCall("$conn-q2", 50) }
+                        .ap { networkCall("$conn-q3", 50) }
+                },
+                release = { _, _ -> },
+            )
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 20: CircuitBreaker half-open to close transition
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun circuitBreaker_halfOpen_probe_success(): String = runBlocking {
+        // Create a breaker, trip it, then wait for half-open and probe
+        val breaker = CircuitBreaker(
+            maxFailures = 1,
+            resetTimeout = kotlin.time.Duration.parse("1ms"),
+        )
+        // Trip the breaker
+        runCatching {
+            Async { Computation<String> { error("trip") }.withCircuitBreaker(breaker) }
+        }
+        // Wait for half-open
+        delay(2)
+        // Probe succeeds → closes
+        Async { Computation { compute(1) }.withCircuitBreaker(breaker) }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 21: orElse chain performance
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun orElse_chain_3_overhead(): String = runBlocking {
+        Async {
+            Computation<String> { error("fail-1") }
+                .orElse(Computation { error("fail-2") })
+                .orElse(Computation { compute(3) })
+        }
+    }
+
+    @Benchmark
+    fun orElse_chain_3_latency(): String = runBlocking {
+        Async {
+            Computation<String> { delay(10); error("fail-1") }
+                .orElse(Computation { delay(10); error("fail-2") })
+                .orElse(Computation { networkCall("ok", 10) })
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 22: firstSuccessOf performance
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun firstSuccessOf_5_third_wins(): String = runBlocking {
+        Async {
+            firstSuccessOf(
+                Computation { error("fail-1") },
+                Computation { error("fail-2") },
+                Computation { compute(3) },
+                Computation { compute(4) },
+                Computation { compute(5) },
+            )
+        }
+    }
+
+    @Benchmark
+    fun firstSuccessOf_5_latency(): String = runBlocking {
+        Async {
+            firstSuccessOf(
+                Computation { delay(10); error("fail-1") },
+                Computation { delay(10); error("fail-2") },
+                Computation { networkCall("ok", 10) },
+                Computation { networkCall("unused", 10) },
+                Computation { networkCall("unused", 10) },
+            )
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 23: timeoutRace vs timeout+fallback comparison
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun timeoutRace_parallel_fallback(): String = runBlocking {
+        Async {
+            Computation { networkCall("primary", 200) }
+                .timeoutRace(kotlin.time.Duration.parse("50ms"), Computation { networkCall("fallback", 30) })
+        }
+    }
+
+    @Benchmark
+    fun timeout_sequential_fallback(): String = runBlocking {
+        Async {
+            Computation { networkCall("primary", 200) }
+                .timeout(kotlin.time.Duration.parse("50ms"), Computation { networkCall("fallback", 30) })
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 24: computation{bind{}} vs flatMap chain comparison
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun flatMap_chain_3_overhead(): String = runBlocking {
+        Async {
+            pure(compute(1)).flatMap { a ->
+                pure(compute(2)).flatMap { b ->
+                    pure(compute(3)).map { c -> "$a|$b|$c" }
+                }
+            }
+        }
+    }
+
+    @Benchmark
+    fun flatMap_chain_3_latency(): String = runBlocking {
+        Async {
+            Computation { networkCall("a", 50) }.flatMap { a ->
+                Computation { networkCall("b-${a.length}", 50) }.flatMap { b ->
+                    Computation { networkCall("c-${b.length}", 50) }.map { c -> "$a|$b|$c" }
+                }
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 25: traverseV with bounded concurrency
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun traverseV_bounded_20_concurrency5_all_pass(): String = runBlocking {
+        val result = Async {
+            (1..20).toList().traverseV(concurrency = 5) { i ->
+                Computation<Either<NonEmptyList<String>, String>> { validate("item-$i", 30, pass = true) }
+            }
+        }
+        when (result) {
+            is Either.Right -> "ok:${result.value.size}"
+            is Either.Left -> "errors:${result.value.size}"
+        }
+    }
+
+    @Benchmark
+    fun traverseV_bounded_20_concurrency5_half_fail(): String = runBlocking {
+        val result = Async {
+            (1..20).toList().traverseV(concurrency = 5) { i ->
+                Computation<Either<NonEmptyList<String>, String>> { validate("item-$i", 30, pass = i % 2 == 0) }
+            }
+        }
+        when (result) {
+            is Either.Right -> "ok:${result.value.size}"
+            is Either.Left -> "errors:${result.value.size}"
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 26: memoizeOnSuccess — failure retry path
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun memoizeOnSuccess_failure_then_success(): String = runBlocking {
+        var calls = 0
+        val m = Computation {
+            calls++
+            if (calls == 1) error("transient")
+            compute(1)
+        }.memoizeOnSuccess()
+
+        // First call fails
+        runCatching { Async { m } }
+        // Second call retries and succeeds
+        Async { m }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 27: raceEither vs race overhead comparison
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun race_homogeneous_overhead(): String = runBlocking {
+        Async {
+            race(
+                Computation { compute(1) },
+                Computation { compute(2) },
+            )
+        }
+    }
+
+    @Benchmark
+    fun raceEither_heterogeneous_overhead(): String = runBlocking {
+        val result = Async {
+            raceEither(
+                Computation { compute(1) },
+                Computation { 42 },
+            )
+        }
+        when (result) {
+            is Either.Left -> result.value
+            is Either.Right -> "n:${result.value}"
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Group 28: ensureV — validated guard overhead
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Benchmark
+    fun ensureV_pass(): String = runBlocking {
+        val result = Async {
+            Computation { 25 }
+                .ensureV({ "too young" }) { it >= 18 }
+        }
+        when (result) {
+            is Either.Right -> "ok:${result.value}"
+            is Either.Left -> "fail:${result.value}"
+        }
+    }
+
+    @Benchmark
+    fun ensureV_fail(): String = runBlocking {
+        val result = Async {
+            Computation { 15 }
+                .ensureV({ "too young" }) { it >= 18 }
+        }
+        when (result) {
+            is Either.Right -> "ok:${result.value}"
+            is Either.Left -> "fail:${result.value.head}"
+        }
+    }
 }

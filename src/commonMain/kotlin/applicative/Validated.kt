@@ -168,6 +168,57 @@ fun <E, A> Computation<A>.validate(toError: (A) -> E?): Computation<Either<NonEm
         if (error == null) Either.Right(a) else Either.Left(error.toNonEmptyList())
     }
 
+// ── ensureV: predicate-based validated guard ───────────────────────────
+
+/**
+ * Validates the result of this computation against [predicate].
+ * If the predicate passes, wraps the result in [Either.Right].
+ * If the predicate fails, wraps the error from [error] in [Either.Left].
+ *
+ * Unlike [validate] which takes `(A) -> E?`, [ensureV] takes a boolean
+ * predicate and a separate error function — matching the ergonomics
+ * of [Computation.ensure] but producing a validated result instead of throwing.
+ *
+ * ```
+ * Computation { fetchAge() }
+ *     .ensureV({ "too young" }) { it >= 18 }
+ *     // Right(25) if passes, Left(Nel("too young")) if fails
+ * ```
+ */
+fun <E, A> Computation<A>.ensureV(
+    error: (A) -> E,
+    predicate: (A) -> Boolean,
+): Computation<Either<NonEmptyList<E>, A>> = Computation {
+    val a = with(this@ensureV) { execute() }
+    if (predicate(a)) Either.Right(a) else Either.Left(error(a).toNonEmptyList())
+}
+
+/**
+ * Like [ensureV] but allows returning multiple errors when the predicate fails.
+ *
+ * Useful for multi-rule validation where a single value can violate several constraints:
+ *
+ * ```
+ * Computation { fetchPassword() }
+ *     .ensureVAll({ pwd ->
+ *         buildList {
+ *             if (pwd.length < 8) add("too short")
+ *             if (pwd.none { it.isDigit() }) add("needs digit")
+ *             if (pwd.none { it.isUpperCase() }) add("needs uppercase")
+ *         }.let { NonEmptyList.fromList(it)!! }
+ *     }) { pwd ->
+ *         pwd.length >= 8 && pwd.any { it.isDigit() } && pwd.any { it.isUpperCase() }
+ *     }
+ * ```
+ */
+fun <E, A> Computation<A>.ensureVAll(
+    errors: (A) -> NonEmptyList<E>,
+    predicate: (A) -> Boolean,
+): Computation<Either<NonEmptyList<E>, A>> = Computation {
+    val a = with(this@ensureVAll) { execute() }
+    if (predicate(a)) Either.Right(a) else Either.Left(errors(a))
+}
+
 // ── traverseV: parallel traverse with error accumulation ─────────────────
 
 /**
@@ -402,6 +453,23 @@ class ValidatedScope<E> @PublishedApi internal constructor(
      */
     suspend fun <A> Computation<Either<NonEmptyList<E>, A>>.bindV(): A =
         with(this@bindV) { scope.execute() }.bind()
+
+    /**
+     * Executes a non-validated suspend block inside a validated pipeline.
+     *
+     * Useful for sequential side-effects or intermediate computations
+     * that don't produce validation errors:
+     *
+     * ```
+     * validated<String> {
+     *     val name = validateName(input).bind()
+     *     val enriched = call { enrichName(name) }  // no validation, just a call
+     *     val email = validateEmail(input).bind()
+     *     User(enriched, email)
+     * }
+     * ```
+     */
+    suspend fun <A> call(block: suspend () -> A): A = block()
 }
 
 /**

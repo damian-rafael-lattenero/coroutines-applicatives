@@ -4,7 +4,7 @@
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
 [![Coroutines](https://img.shields.io/badge/Coroutines-1.9.0-blue.svg)](https://github.com/Kotlin/kotlinx.coroutines)
-[![Tests](https://img.shields.io/badge/Tests-790%20passing-brightgreen.svg)](#empirical-data)
+[![Tests](https://img.shields.io/badge/Tests-826%20passing-brightgreen.svg)](#empirical-data)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Multiplatform](https://img.shields.io/badge/Multiplatform-JVM%20%7C%20JS%20%7C%20Native-orange.svg)](#)
@@ -795,7 +795,7 @@ Unlike most Kotlin libraries, every algebraic law is **property-based tested** w
 
 Source: [`ApplicativeLawsTest.kt`](src/jvmTest/kotlin/applicative/ApplicativeLawsTest.kt)
 
-**790 tests across 44 suites. All passing.**
+**826 tests across 49 suites. All passing.**
 
 ---
 
@@ -1007,6 +1007,7 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `validated { }` / `accumulate { }` | Short-circuit builder with `.bind()` / `.bindV()` — sequential validation DSL |
 | `valid` / `invalid` / `catching` / `validate` | Entry points |
 | `Nel<A>` (typealias) | Shorthand for `NonEmptyList<A>` — reduces validated type verbosity |
+| `ensureV(error) { pred }` / `ensureVAll(errors) { pred }` | Predicate-based validated guards |
 | `recoverV` / `mapV` / `mapError` / `orThrow` | Transforms |
 | `traverseV` / `sequenceV` | Collection operations with accumulation |
 
@@ -1056,16 +1057,20 @@ Arrow interop module: [`/arrow-interop`](arrow-interop/) — optional bridges fo
 ## Building
 
 ```bash
-./gradlew jvmTest              # 790 tests
+./gradlew jvmTest              # recommended first command: all tests, no Xcode needed
+./gradlew build                # full build (auto-skips Apple targets without Xcode)
 ./gradlew :arrow-interop:test  # Arrow interop tests
 ./gradlew :benchmarks:jmh      # JMH benchmarks
 ./gradlew dokkaHtml             # API docs
 ./gradlew generateAll           # regenerate all overloads (arities 2-22)
 ```
 
-> **Native targets (iOS, macOS, Linux):** `./gradlew build` compiles all Kotlin/Native targets.
-> Apple targets (iOS, macOS) require Xcode and its command-line tools (`xcode-select --install`).
-> If you only need JVM/JS, use `./gradlew jvmTest` or `./gradlew jsTest` instead.
+> **First time?** Start with `./gradlew jvmTest` — it runs all tests on JVM
+> without needing Xcode or native toolchains.
+>
+> **Native targets:** Apple targets (iOS, macOS) are automatically skipped when
+> Xcode is not installed. Linux Native compiles with just the Kotlin toolchain.
+> To enable Apple targets, install Xcode and its command-line tools (`xcode-select --install`).
 
 See [PUBLISHING.md](PUBLISHING.md) for Maven Central publishing instructions.
 
