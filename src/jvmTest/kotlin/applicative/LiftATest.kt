@@ -11,6 +11,7 @@ import kotlin.test.assertFailsWith
  * Tests for [liftA2]–[liftA5] and [product] — Haskell-style applicative lifting
  * with suspend lambda inputs (parZip-like ergonomics).
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class LiftATest {
 
     // ── liftA2 ──────────────────────────────────────────────────────────

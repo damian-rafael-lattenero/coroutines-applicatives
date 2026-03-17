@@ -445,4 +445,44 @@ fun <E, A> validated(block: suspend ValidatedScope<E>.() -> A): Computation<Eith
         }
     }
 
+// ── accumulate { } builder: parallel phases + sequential short-circuit ────
+
+/**
+ * Scope for the [accumulate] builder, combining parallel error accumulation
+ * within phases with sequential short-circuit between phases.
+ *
+ * Use [zipV] / [apV] inside for parallel accumulation, and [bind] / [bindV]
+ * to short-circuit between phases:
+ *
+ * ```
+ * val result = Async {
+ *     accumulate<RegError> {
+ *         // Phase 1: parallel accumulation
+ *         val identity = zipV(
+ *             { validateName(input.name) },
+ *             { validateEmail(input.email) },
+ *             { validateAge(input.age) },
+ *         ) { name, email, age -> Identity(name, email, age) }
+ *             .bindV()  // short-circuits if phase 1 fails
+ *
+ *         // Phase 2: parallel accumulation (only runs if phase 1 passed)
+ *         val cleared = zipV(
+ *             { checkNotBlocked(identity) },
+ *             { checkUsernameAvailable(identity.email) },
+ *         ) { a, b -> Clearance(a, b) }
+ *             .bindV()
+ *
+ *         Registration(identity, cleared)
+ *     }
+ * }
+ * ```
+ *
+ * This is syntactic sugar over [validated] — same semantics, different name
+ * that better communicates the intent of "accumulate errors within phases,
+ * short-circuit between phases."
+ */
+@Suppress("UNCHECKED_CAST")
+fun <E, A> accumulate(block: suspend ValidatedScope<E>.() -> A): Computation<Either<NonEmptyList<E>, A>> =
+    validated(block)
+
 // ── zipV + liftV: see ValidatedOverloads.kt (auto-generated) ─────────────
