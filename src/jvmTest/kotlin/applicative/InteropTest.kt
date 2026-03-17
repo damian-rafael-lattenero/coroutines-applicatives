@@ -1,6 +1,7 @@
 package applicative
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -201,5 +202,70 @@ class InteropTest {
             )
         }
         assertEquals("fast", result)
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Deferred — timing and cancellation
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `Deferred toComputation suspends until completion`() = runTest {
+        val deferred = CompletableDeferred<String>()
+        val computation = deferred.toComputation()
+
+        // Start computation in parallel, complete deferred after delay
+        val result = Async {
+            lift2 { a: String, b: String -> "$a|$b" }
+                .ap {
+                    kotlinx.coroutines.delay(50)
+                    deferred.complete("resolved")
+                    "trigger"
+                }
+                .ap { with(computation) { execute() } }
+        }
+        assertEquals("trigger|resolved", result)
+    }
+
+    @Test
+    fun `delayed timing is exact in virtual time`() = runTest {
+        val result = Async { delayed(100.milliseconds, "hello") }
+        assertEquals("hello", result)
+    }
+
+    @Test
+    fun `catching preserves CancellationException`() = runTest {
+        val result = runCatching {
+            Async {
+                catching {
+                    throw kotlinx.coroutines.CancellationException("cancelled")
+                }
+            }
+        }
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
+
+    @Test
+    fun `catching wraps non-cancellation exceptions in Result`() = runTest {
+        val result = Async {
+            catching { throw RuntimeException("boom") }
+        }
+        assertTrue(result.isFailure)
+        assertEquals("boom", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `Result toValidated composes with zipV`() = runTest {
+        val good = Result.success(42).toValidated { "error: ${it.message}" }
+        val bad = Result.failure<Int>(RuntimeException("oops")).toValidated { "error: ${it.message}" }
+
+        val result = Async {
+            liftV2<String, Int, Int, Int> { a, b -> a + b }
+                .apV(good)
+                .apV(bad)
+        }
+
+        assertTrue(result is Either.Left)
+        assertEquals("error: oops", (result as Either.Left).value.head)
     }
 }

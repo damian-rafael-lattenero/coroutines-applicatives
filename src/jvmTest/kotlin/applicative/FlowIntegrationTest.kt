@@ -151,4 +151,76 @@ class FlowIntegrationTest {
 
         assertEquals(listOf(30, 40, 50), result)
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // mapComputation — concurrent edge cases
+    // ════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `mapComputation concurrent with concurrency exceeding element count`() = runTest {
+        val result = flowOf(1, 2, 3)
+            .mapComputation(concurrency = 10) { n ->
+                Computation {
+                    delay(20.milliseconds)
+                    n * 10
+                }
+            }
+            .toList()
+
+        // All 3 elements should be processed (concurrency > count is fine)
+        assertEquals(3, result.size)
+        assertTrue(result.containsAll(listOf(10, 20, 30)))
+    }
+
+    @Test
+    fun `mapComputation sequential exception propagates`() = runTest {
+        val result = runCatching {
+            flowOf(1, 2, 3)
+                .mapComputation { n ->
+                    Computation<Int> {
+                        if (n == 2) throw RuntimeException("boom at $n")
+                        n * 10
+                    }
+                }
+                .toList()
+        }
+
+        assertTrue(result.isFailure)
+        assertEquals("boom at 2", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `mapComputation concurrent exception propagates`() = runTest {
+        val result = runCatching {
+            flowOf(1, 2, 3, 4, 5)
+                .mapComputation(concurrency = 3) { n ->
+                    Computation<Int> {
+                        delay(10.milliseconds)
+                        if (n == 3) throw RuntimeException("boom at $n")
+                        n * 10
+                    }
+                }
+                .toList()
+        }
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("boom") == true)
+    }
+
+    @Test
+    fun `filterComputation exception propagates`() = runTest {
+        val result = runCatching {
+            flowOf(1, 2, 3)
+                .filterComputation { n ->
+                    Computation<Boolean> {
+                        if (n == 2) throw RuntimeException("filter boom")
+                        true
+                    }
+                }
+                .toList()
+        }
+
+        assertTrue(result.isFailure)
+        assertEquals("filter boom", result.exceptionOrNull()?.message)
+    }
 }

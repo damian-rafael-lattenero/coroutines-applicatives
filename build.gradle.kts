@@ -32,11 +32,21 @@ kotlin {
         nodejs()
     }
     linuxX64()
-    macosX64()
-    macosArm64()
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+
+    // Apple targets require Xcode — auto-skip when not installed so that
+    // ./gradlew build works out of the box on any machine.
+    val xcodeAvailable = try {
+        val proc = ProcessBuilder("xcode-select", "-p").start()
+        proc.waitFor() == 0
+    } catch (_: Exception) { false }
+
+    if (xcodeAvailable) {
+        macosX64()
+        macosArm64()
+        iosX64()
+        iosArm64()
+        iosSimulatorArm64()
+    }
 
     sourceSets {
         commonMain.dependencies {
