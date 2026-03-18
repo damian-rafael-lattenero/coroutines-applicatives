@@ -935,7 +935,7 @@ Unlike most Kotlin libraries, every algebraic law is **property-based tested** w
 
 Source: [`ApplicativeLawsTest.kt`](src/jvmTest/kotlin/applicative/ApplicativeLawsTest.kt)
 
-**923 tests across 61 suites. All passing.**
+**923 tests across 57 suites. All passing.**
 
 ---
 

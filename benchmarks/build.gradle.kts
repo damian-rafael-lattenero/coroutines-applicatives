@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-    id("me.champeau.jmh") version "0.7.2"
+    id("me.champeau.jmh") version "0.7.3"
 }
 
 repositories {
@@ -23,4 +23,5 @@ jmh {
     iterations.set(5)
     fork.set(2)
     includes.set(listOf("applicative.benchmarks.*"))
+    jmhVersion.set("1.37")
 }

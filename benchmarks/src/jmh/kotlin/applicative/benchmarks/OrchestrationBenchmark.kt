@@ -11,6 +11,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.annotations.*
+import org.openjdk.jmh.infra.Blackhole
 import java.util.concurrent.TimeUnit
 
 /**
@@ -1089,10 +1090,10 @@ open class OrchestrationBenchmark {
     // ════════════════════════════════════════════════════════════════════════
 
     @Benchmark
-    fun settled_success_overhead(): Result<String> = runBlocking {
-        Async {
+    fun settled_success_overhead(bh: Blackhole) = runBlocking {
+        bh.consume(Async {
             Computation { compute(1) }.settled()
-        }
+        })
     }
 
     @Benchmark
