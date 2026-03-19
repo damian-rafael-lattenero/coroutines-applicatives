@@ -1223,8 +1223,6 @@ Arrow interop module: [`/arrow-interop`](arrow-interop/) — optional bridges fo
 > Xcode is not installed. Linux Native compiles with just the Kotlin toolchain.
 > To enable Apple targets, install Xcode and its command-line tools (`xcode-select --install`).
 
-See [PUBLISHING.md](PUBLISHING.md) for Maven Central publishing instructions.
-
 ## License
 
 Apache 2.0
