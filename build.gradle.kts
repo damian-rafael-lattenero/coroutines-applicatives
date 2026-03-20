@@ -12,4 +12,4 @@ allprojects {
 }
 
 group = "io.github.damian-rafael-lattenero"
-version = "2.0.3"
+version = "2.1.0"
