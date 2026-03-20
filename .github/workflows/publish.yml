@@ -108,8 +108,6 @@ jobs:
           distribution: corretto
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.10.2"
 
       - name: Wait for Maven Central sync
         run: |
@@ -136,37 +134,3 @@ jobs:
             fi
             echo "$MODULE $VERSION verified on Maven Central."
           done
-
-      - name: Run examples against Maven Central
-        run: |
-          for dir in \
-            examples/ecommerce-checkout \
-            examples/dashboard-aggregator \
-            examples/validated-registration \
-            examples/resilient-fetcher \
-            examples/full-stack-order; do
-            echo ""
-            echo "════════════════════════════════════════"
-            echo "  Verifying: $dir"
-            echo "════════════════════════════════════════"
-            (cd "$dir" && gradle run --no-daemon)
-          done
-
-      - name: Ktor integration smoke test
-        run: |
-          cd examples/ktor-integration
-          gradle run --no-daemon &
-          SERVER_PID=$!
-          for i in $(seq 1 30); do
-            curl -s http://localhost:8080/dashboard/42 > /dev/null 2>&1 && break
-            sleep 1
-          done
-          curl -sf http://localhost:8080/dashboard/42
-          curl -sf -X POST http://localhost:8080/register \
-            -H "Content-Type: application/json" \
-            -d '{"name":"Alice","email":"alice@test.com","age":25}'
-          curl -sf http://localhost:8080/fast-user/99
-          kill $SERVER_PID 2>/dev/null || true
-          wait $SERVER_PID 2>/dev/null || true
-          echo ""
-          echo "Post-publish verification complete."

@@ -1,20 +1,14 @@
 plugins {
-    kotlin("jvm") version "2.0.21"
+    kotlin("jvm")
     application
     kotlin("plugin.serialization") version "2.0.21"
 }
 
-repositories {
-    mavenCentral()
-}
-
-kotlin {
-    jvmToolchain(21)
-}
-
 dependencies {
-    implementation("io.github.damian-rafael-lattenero:kap-core:2.0.2")
-    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.0.2")
+    // Maven: implementation("io.github.damian-rafael-lattenero:kap-core:2.0.3")
+    // Maven: implementation("io.github.damian-rafael-lattenero:kap-arrow:2.0.3")
+    implementation(project(":kap-core"))
+    implementation(project(":kap-arrow"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("io.ktor:ktor-server-core:3.0.3")
     implementation("io.ktor:ktor-server-netty:3.0.3")

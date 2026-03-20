@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
 
@@ -115,7 +116,7 @@ jobs:
           fi
           echo "Generated code is up-to-date"
 
-  # ── Examples integration (standalone projects via mavenLocal) ─────────────
+  # ── Examples integration ──────────────────────────────────────────────────
   examples:
     name: Examples
     needs: test
@@ -127,43 +128,25 @@ jobs:
           distribution: corretto
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.10.2"
 
-      - name: Publish to Maven Local
-        run: ./gradlew publishToMavenLocal -PskipSigning
-
-      - name: Prepare init script
+      - name: Run examples
         run: |
-          cat > /tmp/maven-local.init.gradle << 'INITEOF'
-          allprojects {
-            repositories {
-              mavenLocal()
-            }
-          }
-          INITEOF
-
-      - name: Run standalone examples
-        run: |
-          INIT="--init-script /tmp/maven-local.init.gradle"
-          for dir in \
-            examples/ecommerce-checkout \
-            examples/dashboard-aggregator \
-            examples/validated-registration \
-            examples/resilient-fetcher \
-            examples/full-stack-order; do
+          for mod in \
+            ecommerce-checkout \
+            dashboard-aggregator \
+            validated-registration \
+            resilient-fetcher \
+            full-stack-order; do
             echo ""
             echo "════════════════════════════════════════"
-            echo "  Running: $dir"
+            echo "  Running: examples/$mod"
             echo "════════════════════════════════════════"
-            (cd "$dir" && gradle run $INIT --no-daemon)
+            ./gradlew ":examples:$mod:run"
           done
 
       - name: Ktor integration smoke test
         run: |
-          INIT="--init-script /tmp/maven-local.init.gradle"
-          cd examples/ktor-integration
-          gradle run $INIT --no-daemon &
+          ./gradlew :examples:ktor-integration:run &
           SERVER_PID=$!
           for i in $(seq 1 30); do
             curl -s http://localhost:8080/dashboard/42 > /dev/null 2>&1 && break

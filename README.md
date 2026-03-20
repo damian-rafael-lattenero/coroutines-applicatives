@@ -239,13 +239,13 @@ KAP is split into three modules so you only pay for what you use. Non-Arrow proj
 // build.gradle.kts
 dependencies {
     // Core applicative DSL — the only required module (zero deps beyond coroutines)
-    implementation("io.github.damian-rafael-lattenero:kap-core:2.0.2")
+    implementation("io.github.damian-rafael-lattenero:kap-core:2.0.3")
 
     // Optional: resilience patterns (Schedule, Resource, CircuitBreaker, bracket)
-    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.0.2")
+    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.0.3")
 
     // Optional: Arrow integration (validated DSL, Either/Nel, raceEither, attempt)
-    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.0.2")
+    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.0.3")
 }
 ```
 
@@ -1599,10 +1599,10 @@ Each example's `build.gradle.kts` includes comments with the equivalent Maven co
 # Full build
 ./gradlew build                      # auto-skips Apple targets without Xcode
 
-# Examples (standalone projects — run from their directory)
-cd examples/ecommerce-checkout && gradle run
-cd examples/resilient-fetcher && gradle run
-cd examples/full-stack-order && gradle run
+# Examples
+./gradlew :examples:ecommerce-checkout:run
+./gradlew :examples:resilient-fetcher:run
+./gradlew :examples:full-stack-order:run
 
 # Benchmarks & docs
 ./gradlew :benchmarks:jmh            # JMH benchmarks (JSON results in benchmarks/build/results/jmh/)
