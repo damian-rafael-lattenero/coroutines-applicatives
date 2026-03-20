@@ -16,12 +16,12 @@ kotlin {
 
 dependencies {
     api(project(":kap-core"))
-    api("io.arrow-kt:arrow-core:1.2.4")
-    implementation("io.arrow-kt:arrow-fx-coroutines:1.2.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    api(libs.arrow.core)
+    implementation(libs.arrow.fx)
+    implementation(libs.coroutines.core)
 
     testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation(libs.coroutines.test)
 }
 
 tasks.test {
@@ -110,7 +110,7 @@ $params,
 }
 
 mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     if (!project.hasProperty("skipSigning")) signAllPublications()
     coordinates(group.toString(), "kap-arrow", version.toString())
 

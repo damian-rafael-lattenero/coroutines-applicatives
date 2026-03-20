@@ -45,12 +45,12 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":kap-core"))
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+            implementation(libs.coroutines.core)
         }
         jvmTest.dependencies {
             implementation(kotlin("test"))
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
-            implementation("io.kotest:kotest-property:5.9.1")
+            implementation(libs.coroutines.test)
+            implementation(libs.kotest.property)
         }
     }
 }
@@ -107,7 +107,7 @@ $params,
 }
 
 mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     if (!project.hasProperty("skipSigning")) signAllPublications()
     coordinates(group.toString(), "kap-resilience", version.toString())
 
