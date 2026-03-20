@@ -239,13 +239,13 @@ KAP is split into three modules so you only pay for what you use. Non-Arrow proj
 // build.gradle.kts
 dependencies {
     // Core applicative DSL — the only required module (zero deps beyond coroutines)
-    implementation("io.github.damian-rafael-lattenero:kap-core:2.0.3")
+    implementation("io.github.damian-rafael-lattenero:kap-core:2.1.0")
 
     // Optional: resilience patterns (Schedule, Resource, CircuitBreaker, bracket)
-    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.0.3")
+    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.1.0")
 
     // Optional: Arrow integration (validated DSL, Either/Nel, raceEither, attempt)
-    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.0.3")
+    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.1.0")
 }
 ```
 
