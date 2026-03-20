@@ -1,16 +1,24 @@
-# Coroutines Applicatives
+# KAP — Kotlin Applicative Parallelism
 
 **Your code shape *is* the execution plan.**
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-blue.svg)](https://kotlinlang.org)
 [![Coroutines](https://img.shields.io/badge/Coroutines-1.9.0-blue.svg)](https://github.com/Kotlin/kotlinx.coroutines)
-[![Tests](https://img.shields.io/badge/Tests-946%20passing-brightgreen.svg)](#empirical-data)
+[![Tests](https://img.shields.io/badge/Tests-906%20across%2061%20suites-brightgreen.svg)](#empirical-data)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Multiplatform](https://img.shields.io/badge/Multiplatform-JVM%20%7C%20JS%20%7C%20Native-orange.svg)](#)
-[![Lines](https://img.shields.io/badge/Hand--written-2.5k%20lines-informational.svg)](#)
+[![Modular](https://img.shields.io/badge/Modules-kap--core%20%7C%20kap--resilience%20%7C%20kap--arrow-informational.svg)](#module-architecture)
 
 *Applicative-first orchestration: the Haskell Applicative pattern, natively expressed in Kotlin coroutines. Not a framework. Not Arrow-lite. A precision tool for parallel dependency graphs where your code shape is your execution plan.*
+
+**Three modules, pick what you need:**
+
+| Module | What you get | Depends on |
+|---|---|---|
+| **`kap-core`** | `Computation`, `ap`, `lift`, `followedBy`, `race`, `traverse`, `memoize`, `timeout`, `recover` | `kotlinx-coroutines-core` only |
+| **`kap-resilience`** | `Schedule`, `CircuitBreaker`, `Resource`, `bracket`, `raceQuorum`, `timeoutRace` | `kap-core` |
+| **`kap-arrow`** | `zipV`, `apV`, `validated {}`, `attempt()`, `raceEither`, `Either`/`Nel` bridges | `kap-core` + Arrow Core |
 
 ```kotlin
 val checkout: CheckoutResult = Async {
@@ -31,7 +39,7 @@ val checkout: CheckoutResult = Async {
 
 11 service calls. 5 phases. One flat chain. **Swap any two `.ap` lines → compiler error.** Each service returns a distinct type — the curried chain locks parameter order at compile time.
 
-**130ms virtual time** (vs 460ms sequential) — verified in [`ConcurrencyProofTest.kt`](src/jvmTest/kotlin/applicative/ConcurrencyProofTest.kt).
+**130ms virtual time** (vs 460ms sequential) — verified in [`ConcurrencyProofTest.kt`](kap-core/src/jvmTest/kotlin/applicative/ConcurrencyProofTest.kt).
 
 But what does this replace?
 
@@ -102,7 +110,7 @@ CheckoutResult(user, cart, promos, inventory, stock,
 // max 9 args per parZip, phases are separate statements — not a single readable chain.
 ```
 
-**This library — 12 lines, single flat chain, visible phases:**
+**KAP — 12 lines, single flat chain, visible phases:** *(kap-core)*
 
 ```kotlin
 val checkout = Async {
@@ -194,12 +202,49 @@ t=80ms  ─── PersonalizedDashboard ready
 
 ---
 
+## Module Architecture
+
+KAP is split into three modules so you only pay for what you use. Non-Arrow projects get a lean DSL with zero Arrow types in auto-complete. Arrow users add `kap-arrow` for native `Either`/`NonEmptyList` integration.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        kap-arrow                            │
+│  zipV · apV · validated {} · attempt() · raceEither         │
+│  Either/Nel bridges · accumulate {} · Validated<E,A>        │
+│          depends on: kap-core + Arrow Core (JVM only)       │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+┌────────────────────────────┴────────────────────────────────┐
+│                      kap-resilience                         │
+│  Schedule · CircuitBreaker · Resource · bracket             │
+│  raceQuorum · timeoutRace · retry(schedule) · retryOrElse   │
+│               depends on: kap-core                          │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+┌────────────────────────────┴────────────────────────────────┐
+│                        kap-core                             │
+│  Computation · ap · followedBy · flatMap · lift · zip · mapN│
+│  race · traverse · memoize · timeout · recover · retry(n)   │
+│  settled · catching · Deferred/Flow bridges                 │
+│    depends on: kotlinx-coroutines-core (JVM, JS, Native)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Quick Start
+
+**Pick only the modules you need:**
 
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.damian-rafael-lattenero:kap:1.0.0")
+    // Core applicative DSL — the only required module (zero deps beyond coroutines)
+    implementation("io.github.damian-rafael-lattenero:kap-core:2.0.0")
+
+    // Optional: resilience patterns (Schedule, Resource, CircuitBreaker, bracket)
+    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.0.0")
+
+    // Optional: Arrow integration (validated DSL, Either/Nel, raceEither, attempt)
+    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.0.0")
 }
 ```
 
@@ -219,9 +264,45 @@ suspend fun main() {
 }
 ```
 
-**One dependency:** `kotlinx-coroutines-core`. ~2,500 hand-written lines + codegen. All platforms (JVM, JS, Native).
+Add resilience to any branch — each module composes naturally:
 
-> **Tip:** Use `Validated<E, A>` as shorthand for `Computation<Either<NonEmptyList<E>, A>>` and `Nel<E>` for `NonEmptyList<E>` — both are built-in typealiases that dramatically reduce type verbosity in validated signatures.
+```kotlin
+import applicative.*   // kap-core
+// + kap-resilience for Schedule, CircuitBreaker, bracket, timeoutRace
+
+val breaker = CircuitBreaker(maxFailures = 5, resetTimeout = 30.seconds)
+val retryPolicy = Schedule.recurs<Throwable>(3) and Schedule.exponential(100.milliseconds)
+
+val result = Async {
+    lift3(::Dashboard)
+        .ap(Computation { fetchUser() }
+            .withCircuitBreaker(breaker)
+            .retry(retryPolicy))
+        .ap(Computation { fetchFromSlowApi() }
+            .timeoutRace(200.milliseconds, Computation { fetchFromCache() }))
+        .ap { fetchPromos() }
+}
+```
+
+Add validation with Arrow types:
+
+```kotlin
+import applicative.*   // kap-core + kap-arrow
+import arrow.core.Either
+import arrow.core.NonEmptyList
+
+val registration = Async {
+    liftV4<RegError, ValidName, ValidEmail, ValidAge, ValidUsername, User>(::User)
+        .apV { validateName(input.name) }      // ┐ all 4 in parallel
+        .apV { validateEmail(input.email) }    // │ errors accumulated
+        .apV { validateAge(input.age) }        // │ (not short-circuited)
+        .apV { checkUsername(input.username) }  // ┘
+}
+// 3 fail? → Either.Left(NonEmptyList(NameTooShort, InvalidEmail, AgeTooLow))
+// All pass? → Either.Right(User(...))
+```
+
+> **Tip (kap-arrow):** `Validated<E, A>` is a built-in typealias for `Computation<Either<NonEmptyList<E>, A>>` and `Nel<A>` for `NonEmptyList<A>` — reduces type verbosity in validated signatures.
 
 ### Choose Your Style
 
@@ -258,11 +339,11 @@ All styles are parallel by default. `lift+ap` gives stronger type safety; `liftA
 
 ## Feature Showcase
 
-Every feature below follows the same structure: **the real-world problem** you face, how **raw coroutines** handle it (or fail to), how **Arrow** handles it (or where it falls short), and how **this library** solves it.
+Every feature below follows the same structure: **the real-world problem** you face, how **raw coroutines** handle it (or fail to), how **Arrow** handles it (or where it falls short), and how **KAP** solves it. Each section is tagged with the module that provides it.
 
 ---
 
-### 1. Parallel Validation — Collect *Every* Error
+### 1. Parallel Validation — Collect *Every* Error `kap-arrow`
 
 **The problem:** You have a registration form with 12 fields. You want to validate all of them in parallel and return *every* error at once — not just the first one. The user shouldn't have to fix errors one at a time.
 
@@ -302,7 +383,7 @@ either {
 // Then a second zipOrAccumulate for the remaining 3, then combine.
 ```
 
-**This library — `zipV`, up to 22 validators, all in parallel:**
+**KAP — `zipV`, up to 22 validators, all in parallel:** *(kap-arrow)*
 
 ```kotlin
 val result = Async {
@@ -331,7 +412,7 @@ val result = Async {
 
 ---
 
-### 2. Value-Dependent Phases with `flatMap`
+### 2. Value-Dependent Phases with `flatMap` `kap-core`
 
 **The problem:** Your dashboard needs user context (profile, preferences, loyalty tier) before it can fetch personalized content. Phase 2 *depends* on the result of Phase 1. You need a barrier that passes data forward.
 
@@ -373,7 +454,7 @@ val dashboard = parZip(
 // is expressed through variable scoping, not through the structure.
 ```
 
-**This library — `flatMap` makes the dependency explicit:**
+**KAP — `flatMap` makes the dependency explicit:** *(kap-core)*
 
 ```kotlin
 val dashboard = Async {
@@ -395,7 +476,7 @@ val dashboard = Async {
 
 ---
 
-### 3. Retry with Composable Backoff Policies
+### 3. Retry with Composable Backoff Policies `kap-resilience`
 
 **The problem:** A downstream service is flaky. You need to retry with exponential backoff, jitter (to prevent thundering herd), a max duration, and you only want to retry on IOExceptions — not on 4xx client errors.
 
@@ -426,7 +507,7 @@ throw lastError!!
 // And you have to copy-paste this everywhere.
 ```
 
-**Arrow — `Schedule` composition (similar to this library):**
+**Arrow — `Schedule` composition (similar API):**
 
 ```kotlin
 val policy = Schedule.recurs<Throwable>(5)
@@ -436,7 +517,7 @@ val policy = Schedule.recurs<Throwable>(5)
 Schedule.retry(policy) { fetchUser(userId) }
 ```
 
-**This library — `Schedule` composition, integrated with `Computation`:**
+**KAP — `Schedule` composition, integrated with `Computation`:** *(kap-resilience)*
 
 ```kotlin
 val policy = Schedule.recurs<Throwable>(5) and
@@ -478,7 +559,7 @@ s1 or s2                                    // either can continue (min delay)
 
 ---
 
-### 4. Resource Safety in Parallel
+### 4. Resource Safety in Parallel `kap-resilience`
 
 **The problem:** You need to open three connections (database, cache, HTTP client), use them all in parallel to fetch data, and guarantee that *all three* are closed even if one branch fails — even if the failure is a cancellation.
 
@@ -521,7 +602,7 @@ infra.use { (db, cache, http) ->
 }
 ```
 
-**This library — `bracket` for inline, `Resource` for composed:**
+**KAP — `bracket` for inline, `Resource` for composed:** *(kap-resilience)*
 
 ```kotlin
 // Option 1: bracket — acquire, use in parallel, guaranteed release
@@ -582,7 +663,7 @@ bracketCase(
 
 ---
 
-### 5. Racing — First to Succeed Wins
+### 5. Racing — First to Succeed Wins `kap-core` `kap-arrow`
 
 **The problem:** You have 3 regional replicas. You want the fastest response — and immediately cancel the losers to free resources.
 
@@ -614,7 +695,7 @@ raceN(
 )
 ```
 
-**This library — `raceN`, plus `raceEither` for heterogeneous types:**
+**KAP — `raceN` (kap-core) + `raceEither` for heterogeneous types (kap-arrow):**
 
 ```kotlin
 val fastest = Async {
@@ -638,7 +719,7 @@ val result: Either<CachedUser, FreshUser> = Async {
 
 ---
 
-### 6. Bounded Parallel Collection Processing
+### 6. Bounded Parallel Collection Processing `kap-core`
 
 **The problem:** You have 200 user IDs to fetch. You want to process them in parallel, but your downstream API can only handle 10 concurrent requests before it starts throttling.
 
@@ -667,7 +748,7 @@ val results = userIds.parMap(concurrency = 10) { id ->
 }
 ```
 
-**This library — `traverse` with concurrency:**
+**KAP — `traverse` with concurrency:** *(kap-core)*
 
 ```kotlin
 val results = Async {
@@ -682,11 +763,11 @@ val results = Async {
 
 > ### Features That Don't Exist Anywhere Else
 >
-> The following features are **unique to this library**. They solve real problems that neither raw coroutines nor Arrow address.
+> The following features are **unique to KAP**. They solve real problems that neither raw coroutines nor Arrow address.
 
 ---
 
-### 7. Partial Failure Tolerance with `settled`
+### 7. Partial Failure Tolerance with `settled` `kap-core`
 
 > **UNIQUE TO KAP** — neither raw coroutines nor Arrow offer this.
 
@@ -715,7 +796,7 @@ supervisorScope {
 
 **Arrow — no equivalent.** Arrow's `parZip` follows structured concurrency (any failure cancels siblings). There's no built-in way to say "this branch is optional, keep going if it fails."
 
-**This library — `.settled()`, one method:**
+**KAP — `.settled()`, one method:** *(kap-core)*
 
 ```kotlin
 val dashboard = Async {
@@ -740,7 +821,7 @@ val failures = results.filter { it.isFailure }.map { it.exceptionOrNull()!! }
 
 ---
 
-### 8. Timeout with Parallel Fallback
+### 8. Timeout with Parallel Fallback `kap-resilience`
 
 > **UNIQUE TO KAP** — neither raw coroutines nor Arrow offer this.
 
@@ -759,7 +840,7 @@ val result = try {
 
 **Arrow — no `timeoutRace` equivalent.** You'd have to manually compose `race` with timeout logic.
 
-**This library — `timeoutRace` starts both immediately:**
+**KAP — `timeoutRace` starts both immediately:** *(kap-resilience)*
 
 ```kotlin
 val result = Async {
@@ -775,7 +856,7 @@ val result = Async {
 
 ---
 
-### 9. Quorum Consensus — N-of-M Successes
+### 9. Quorum Consensus — N-of-M Successes `kap-resilience`
 
 > **UNIQUE TO KAP** — neither raw coroutines nor Arrow offer this.
 
@@ -785,7 +866,7 @@ val result = Async {
 
 **Arrow — no equivalent.**
 
-**This library — `raceQuorum`, one line:**
+**KAP — `raceQuorum`, one line:** *(kap-resilience)*
 
 ```kotlin
 val quorum = Async {
@@ -802,9 +883,9 @@ val quorum = Async {
 
 ---
 
-### 10. Circuit Breaker — Protect Downstream from Cascading Failures
+### 10. Circuit Breaker — Protect Downstream from Cascading Failures `kap-resilience`
 
-> **UNIQUE TO KAP** — Arrow has `CircuitBreaker` in a separate module (`arrow-resilience`), but this library's version composes directly with the `Computation` chain.
+> **UNIQUE TO KAP** — Arrow has `CircuitBreaker` in a separate module (`arrow-resilience`), but KAP's version composes directly with the `Computation` chain.
 
 **The problem:** A downstream service is degraded. Every request to it takes 30 seconds and then times out. You're sending 100 requests/second. That's 3,000 pending connections — your service is now degraded too. You need to stop calling it after N failures and auto-recover later.
 
@@ -834,7 +915,7 @@ class ManualCircuitBreaker {
 }
 ```
 
-**This library — 3 lines to create, one method to use:**
+**KAP — 3 lines to create, one method to use:** *(kap-resilience)*
 
 ```kotlin
 val breaker = CircuitBreaker(maxFailures = 5, resetTimeout = 30.seconds)
@@ -852,7 +933,7 @@ val result = Async {
 
 ---
 
-### 11. Compile-Time Argument Order Safety
+### 11. Compile-Time Argument Order Safety `kap-core`
 
 > **UNIQUE TO KAP** — neither raw coroutines nor Arrow enforce parameter order at compile time.
 
@@ -892,7 +973,7 @@ parZip(
 }
 ```
 
-**This library — curried types reject wrong order at compile time:**
+**KAP — curried types reject wrong order at compile time:** *(kap-core)*
 
 ```kotlin
 Async {
@@ -917,7 +998,7 @@ For same-type parameters, use value classes for full swap-safety:
 
 ---
 
-### 12. Memoization with Success-Only Caching
+### 12. Memoization with Success-Only Caching `kap-core`
 
 > **UNIQUE TO KAP** — `memoizeOnSuccess()` retries on failure instead of caching the error.
 
@@ -945,7 +1026,7 @@ class MemoizedFetcher {
 
 **Arrow — no direct equivalent.** Arrow has memoization in some modules, but no built-in "retry on failure" semantic.
 
-**This library — one method:**
+**KAP — one method:** *(kap-core)*
 
 ```kotlin
 val fetchUser = Computation { fetchUser() }.memoizeOnSuccess()
@@ -960,7 +1041,7 @@ val b = Async { fetchUser }  // returns cached result instantly
 
 ---
 
-### 13. Phased Validation — Parallel Within, Sequential Between
+### 13. Phased Validation — Parallel Within, Sequential Between `kap-arrow`
 
 **The problem:** Your registration has two phases. Phase 1: validate name, email, age in parallel. Phase 2: check username availability and blacklist — but *only if phase 1 passes*. You want to save the network calls if basic validation already failed.
 
@@ -987,7 +1068,7 @@ val phase2 = phase1.flatMap { id ->
 // Two separate either blocks. Manual flatMap between them.
 ```
 
-**This library — `accumulate` builder with `bindV`:**
+**KAP — `accumulate` builder with `bindV`:** *(kap-arrow)*
 
 ```kotlin
 val result = Async {
@@ -1016,21 +1097,21 @@ val result = Async {
 
 ### Summary Table
 
-| Feature | Raw Coroutines | Arrow | This Library |
-|---|---|---|---|
-| **Multi-phase orchestration** | Nested scopes, shuttle vars | Nested `parZip` blocks | Flat chain with `.followedBy` |
-| **Parallel validation** | Impossible (cancels siblings) | `zipOrAccumulate` max 9 | `zipV` up to 22 |
-| **Value-dependent phases** | Manual variable threading | Sequential `parZip` blocks | `.flatMap` — dependency is the structure |
-| **Retry + backoff** | Manual loop (~20 lines) | `Schedule` (similar) | `Schedule` + composable with chain |
-| **Resource safety** | try/finally nesting | `Resource` monad | `bracket` / `Resource` — parallel use |
-| **Racing** | Complex `select` | `raceN` (similar) | `raceN` + `raceEither` |
-| **Bounded traversal** | Manual Semaphore | `parMap(concurrency)` | `traverse(concurrency)` |
-| **Partial failure** | `supervisorScope` breaks guarantees | No equivalent | **`.settled()`** |
-| **Timeout + parallel fallback** | Sequential (wastes time) | No equivalent | **`timeoutRace`** — 2.6x faster |
-| **Quorum (N-of-M)** | No primitive | No equivalent | **`raceQuorum`** |
-| **Circuit breaker** | Manual state machine | Separate module | **Composable in chain** |
-| **Compile-time arg safety** | No (positional) | No (named lambda) | **Curried types enforce order** |
-| **Success-only memoization** | Manual Mutex + cache | No equivalent | **`.memoizeOnSuccess()`** |
+| Feature | Raw Coroutines | Arrow | KAP | Module |
+|---|---|---|---|---|
+| **Multi-phase orchestration** | Nested scopes, shuttle vars | Nested `parZip` blocks | Flat chain with `.followedBy` | `kap-core` |
+| **Parallel validation** | Impossible (cancels siblings) | `zipOrAccumulate` max 9 | `zipV` up to 22 | `kap-arrow` |
+| **Value-dependent phases** | Manual variable threading | Sequential `parZip` blocks | `.flatMap` — dependency is the structure | `kap-core` |
+| **Retry + backoff** | Manual loop (~20 lines) | `Schedule` (similar) | `Schedule` + composable with chain | `kap-resilience` |
+| **Resource safety** | try/finally nesting | `Resource` monad | `bracket` / `Resource` — parallel use | `kap-resilience` |
+| **Racing** | Complex `select` | `raceN` (similar) | `raceN` + `raceEither` | `kap-core` + `kap-arrow` |
+| **Bounded traversal** | Manual Semaphore | `parMap(concurrency)` | `traverse(concurrency)` | `kap-core` |
+| **Partial failure** | `supervisorScope` breaks guarantees | No equivalent | **`.settled()`** | `kap-core` |
+| **Timeout + parallel fallback** | Sequential (wastes time) | No equivalent | **`timeoutRace`** — 2.6x faster | `kap-resilience` |
+| **Quorum (N-of-M)** | No primitive | No equivalent | **`raceQuorum`** | `kap-resilience` |
+| **Circuit breaker** | Manual state machine | Separate module | **Composable in chain** | `kap-resilience` |
+| **Compile-time arg safety** | No (positional) | No (named lambda) | **Curried types enforce order** | `kap-core` |
+| **Success-only memoization** | Manual Mutex + cache | No equivalent | **`.memoizeOnSuccess()`** | `kap-core` |
 
 ---
 
@@ -1048,14 +1129,14 @@ The key insight is that **applicative composition is statically analyzable** —
 
 ## Cancellation Safety
 
-`CancellationException` is **never** caught by any combinator in this library. This is a deliberate design choice to respect Kotlin's structured concurrency:
+`CancellationException` is **never** caught by any combinator in KAP. This is a deliberate design choice to respect Kotlin's structured concurrency:
 
-- `recover`, `attempt`, `retry`, `recoverV` — all re-throw `CancellationException`
+- `recover`, `retry`, `catching` (kap-core), `attempt`, `recoverV` (kap-arrow) — all re-throw `CancellationException`
 - `bracket` / `bracketCase` / `guarantee` — release/finalizer always runs in `NonCancellable` context
 - `race` / `raceN` — losers are cancelled via structured concurrency, winner propagates normally
 - When any `.ap` branch fails, all sibling branches are cancelled (standard `coroutineScope` behavior)
 
-This means you can safely nest this library inside any coroutine hierarchy without breaking cancellation propagation.
+This means you can safely nest KAP inside any coroutine hierarchy without breaking cancellation propagation.
 
 ---
 
@@ -1065,22 +1146,22 @@ Which combinator should you use? Follow the arrows:
 
 ```
 Exception occurred?
-├─ Need a default value? ──────────────→ .recover { default }
-├─ Need another Computation? ──────────→ .recoverWith { comp } (or .fallback(comp))
-├─ Want Either<Throwable, A>? ─────────→ .attempt()
-├─ Want sequential fallback chain? ────→ .orElse(other) or firstSuccessOf(c1, c2, c3)
-├─ In validated context? ──────────────→ .recoverV { errorValue }
-├─ Want kotlin.Result? ────────────────→ catching { block }
-└─ Want retry then fallback? ──────────→ .retryOrElse(schedule) { fallbackValue }
+├─ Need a default value? ──────────────→ .recover { default }              (kap-core)
+├─ Need another Computation? ──────────→ .recoverWith { comp }             (kap-core)
+├─ Want Either<Throwable, A>? ─────────→ .attempt()                        (kap-arrow)
+├─ Want kotlin.Result<A>? ─────────────→ catching { block }                (kap-core)
+├─ Want sequential fallback chain? ────→ .orElse(other)                    (kap-core)
+├─ Want retry then fallback? ──────────→ .retryOrElse(schedule) { fb }     (kap-resilience)
+└─ In validated context? ──────────────→ .recoverV { errorValue }          (kap-arrow)
 
 Need a guard (not an exception)?
-├─ Boolean predicate? ─────────────────→ .ensure(error) { pred }
-├─ Null extraction? ───────────────────→ .ensureNotNull(error) { extract }
-├─ Validated predicate? ───────────────→ .ensureV(error) { pred }
-└─ Validated multi-error? ─────────────→ .ensureVAll(errors) { pred }
+├─ Boolean predicate? ─────────────────→ .ensure(error) { pred }           (kap-core)
+├─ Null extraction? ───────────────────→ .ensureNotNull(error) { extract } (kap-core)
+├─ Validated predicate? ───────────────→ .ensureV(error) { pred }          (kap-arrow)
+└─ Validated multi-error? ─────────────→ .ensureVAll(errors) { pred }      (kap-arrow)
 ```
 
-**Rule of thumb:** Use `recover`/`fallback` for simple cases, `retry` for transient failures, `attempt` when you want to branch on success/failure, and the `V` variants when you're in the validated error-accumulation world.
+**Rule of thumb:** Use `recover`/`fallback` for simple cases (kap-core), `retry(schedule)` for transient failures (kap-resilience), `attempt()` when you want `Either` branching (kap-arrow), and the `V` variants for error-accumulation workflows (kap-arrow).
 
 ---
 
@@ -1195,8 +1276,8 @@ All claims backed by **32 JMH benchmark groups** (2 forks x 5 measurement iterat
 | Sequential baseline | 267.6 | 1x | — |
 | Raw coroutines (`async/await`) | 53.9 | **5.0x** | — |
 | Arrow (`parZip`) | 54.0 | **5.0x** | — |
-| **This library** (`lift+ap`) | **54.1** | **4.9x** | **+0.2ms** |
-| **This library** (`liftA5`) | **53.9** | **5.0x** | **+0.0ms** |
+| **KAP** (`lift+ap`) | **54.1** | **4.9x** | **+0.2ms** |
+| **KAP** (`liftA5`) | **53.9** | **5.0x** | **+0.0ms** |
 
 > **Verdict:** All three parallel approaches deliver the theoretical 5x speedup. The library matches raw coroutines to within the margin of error.
 
@@ -1205,8 +1286,8 @@ All claims backed by **32 JMH benchmark groups** (2 forks x 5 measurement iterat
 | Approach | Arity 3 | Arity 5 | Arity 9 | Arity 15 |
 |---|---|---|---|---|
 | Raw coroutines | 0.001ms | — | 0.001ms | — |
-| **This library** (`lift+ap`) | **0.001ms** | — | **0.002ms** | **0.003ms** |
-| **This library** (`liftA`) | **0.001ms** | **0.001ms** | — | — |
+| **KAP** (`lift+ap`) | **0.001ms** | — | **0.002ms** | **0.003ms** |
+| **KAP** (`liftA`) | **0.001ms** | **0.001ms** | — | — |
 | Arrow (`parZip`) | 0.010ms | — | 0.020ms | — |
 
 > **Verdict:** The library's overhead is **indistinguishable from raw coroutines** — both measure ~1us at arity 3. Arrow's `parZip` is 7-10x higher in pure overhead, though still negligible for real I/O workloads.
@@ -1218,9 +1299,9 @@ All claims backed by **32 JMH benchmark groups** (2 forks x 5 measurement iterat
 | Sequential baseline | 441.7 | Yes | 1x |
 | Raw coroutines (nested blocks) | 195.1 | No — 4 async/await groups | **2.3x** |
 | Arrow (nested `parZip`) | 195.3 | No — 4 nested `parZip` blocks | **2.3x** |
-| **This library** (`lift+ap+followedBy`) | **194.6** | **Yes — single flat chain** | **2.3x** |
+| **KAP** (`lift+ap+followedBy`) | **194.6** | **Yes — single flat chain** | **2.3x** |
 
-> **Verdict:** Identical wall-clock time. The crucial difference: raw coroutines and Arrow require nested blocks per phase. This library keeps a single flat chain where `.followedBy` visually marks each barrier. Same performance, radically better readability.
+> **Verdict:** Identical wall-clock time. The crucial difference: raw coroutines and Arrow require nested blocks per phase. KAP keeps a single flat chain where `.followedBy` visually marks each barrier. Same performance, radically better readability.
 
 #### 4. Parallel Validation — 4 validators @ 40ms each
 
@@ -1229,9 +1310,9 @@ All claims backed by **32 JMH benchmark groups** (2 forks x 5 measurement iterat
 | Sequential | 173.8 | Yes | No | 1x |
 | Raw coroutines | N/A | **No** (cancels siblings) | Yes | — |
 | Arrow (`zipOrAccumulate`) | 44.2 | Yes | Yes | **3.9x** |
-| **This library** (`zipV`) | **43.9** | **Yes** | **Yes** | **4.0x** |
+| **KAP** (`zipV`) | **43.9** | **Yes** | **Yes** | **4.0x** |
 
-> **Verdict:** Both this library and Arrow deliver ~4x speedup while collecting every error. Raw coroutines cannot even compete — they'd need `supervisorScope` + manual `Result` wrapping. This library scales to **22 validators** (vs Arrow's 9-arg limit).
+> **Verdict:** Both KAP and Arrow deliver ~4x speedup while collecting every error. Raw coroutines cannot even compete — they'd need `supervisorScope` + manual `Result` wrapping. KAP scales to **22 validators** (vs Arrow's 9-arg limit).
 
 #### 5. Resilience Stack — retry, timeout, race
 
@@ -1268,7 +1349,7 @@ All claims backed by **32 JMH benchmark groups** (2 forks x 5 measurement iterat
 
 ### Comparison Summary
 
-| Dimension | Raw Coroutines | Arrow | This Library |
+| Dimension | Raw Coroutines | Arrow | KAP |
 |---|---|---|---|
 | **Framework overhead** (arity 3) | 0.001ms | 0.010ms | **0.001ms** |
 | **Framework overhead** (arity 9) | 0.001ms | 0.020ms | **0.002ms** |
@@ -1280,8 +1361,9 @@ All claims backed by **32 JMH benchmark groups** (2 forks x 5 measurement iterat
 | **Compile-time arg order safety** | No | No | **Yes** |
 | **Parallel error accumulation** | No | Yes (max 9) | **Yes (max 22)** |
 | **Quorum race (N-of-M)** | Manual | No | **Yes** (`raceQuorum`) |
+| **Arrow dependency** | — | Always | **Optional** (only kap-arrow) |
 
-> The performance story is simple: **this library matches raw coroutines exactly.** The value proposition is not speed — it's safety, readability, and composability at zero cost.
+> The performance story is simple: **KAP matches raw coroutines exactly.** The value proposition is not speed — it's safety, readability, and composability at zero cost.
 
 ### Virtual-Time Proofs
 
@@ -1316,41 +1398,43 @@ Unlike most Kotlin libraries, every algebraic law is **property-based tested** w
 
 **`Validated` (apV/zipV) satisfies Applicative laws** (but intentionally NOT Monad — error accumulation requires applicative semantics).
 
-**`NonEmptyList` satisfies Functor and Monad laws** — identity, composition, and associativity all verified.
+**Arrow's `NonEmptyList`** used natively in `kap-arrow` — no custom reimplementation.
 
-Source: [`ApplicativeLawsTest.kt`](src/jvmTest/kotlin/applicative/ApplicativeLawsTest.kt)
+Source: [`ApplicativeLawsTest.kt`](kap-core/src/jvmTest/kotlin/applicative/ApplicativeLawsTest.kt)
 
-**946 tests across 57 suites. All passing.**
+**906 tests across 61 suites in 3 modules. All passing.**
 
 ---
 
-## Comparison: Raw Coroutines vs Arrow vs This Library
+## Comparison: Raw Coroutines vs Arrow vs KAP
 
-| | Raw Coroutines | Arrow | This Library |
+| | Raw Coroutines | Arrow | KAP |
 |---|---|---|---|
 | **N parallel calls** | Manual async/await, shuttle vars | `parZip` max 9 args | `lift2`..`lift22` + `.ap` — flat |
 | **Multi-phase** | Manual, phases invisible | Nested `parZip` blocks | `.followedBy` — visible |
 | **Value dependencies** | Manual sequencing | Sequential blocks | `flatMap` |
-| **Error accumulation** | Not possible in parallel | `zipOrAccumulate` max 9 | `zipV` up to 22 |
+| **Error accumulation** | Not possible in parallel | `zipOrAccumulate` max 9 | `zipV` up to 22 (kap-arrow) |
 | **Arg order safety** | None — positional | Named args in lambda | Compile-time via currying |
-| **Code size** | stdlib | ~15k lines (Core) | **~2,500 lines** + codegen |
-| **Dependencies** | stdlib | Arrow Core + modules | `kotlinx-coroutines-core` only |
+| **Dependencies** | stdlib | Arrow Core + modules | `kotlinx-coroutines-core` only (core) |
+| **Arrow dependency** | — | Always required | Optional (kap-arrow only) |
 | **JMH overhead** | 0.001ms | 0.010-0.020ms | **0.001-0.002ms** |
 
-> Side-by-side comparison: [`ThreeWayComparisonTest.kt`](src/jvmTest/kotlin/applicative/ThreeWayComparisonTest.kt)
+> Side-by-side comparison: [`ThreeWayComparisonTest.kt`](benchmarks/src/test/kotlin/applicative/ThreeWayComparisonTest.kt)
 > JMH benchmarks: [`OrchestrationBenchmark.kt`](benchmarks/src/jmh/kotlin/applicative/benchmarks/OrchestrationBenchmark.kt)
 
 ### Coming from Arrow?
 
-| Arrow | This Library | Notes |
+`kap-arrow` uses Arrow's **native types** directly — `arrow.core.Either` and `arrow.core.NonEmptyList`. No wrapper types, no adapters.
+
+| Arrow | KAP | Module |
 |---|---|---|
-| `parZip(f1, f2, ...) { a, b, ... -> }` | `liftA3(f1, f2, f3) { }` or `lift3(::R).ap{f1}.ap{f2}.ap{f3}` | liftA for 2-9, lift+ap for 10-22 |
-| Nested `parZip` for phases | `.followedBy { }` | Visible barriers |
-| `zipOrAccumulate(f1, ...) { }` | `zipV(f1, ...) { }` | Same API, up to 22 |
-| `either { ... }` | `validated { }` / `flatMapV { }` | Short-circuit on error with `bind()` |
-| `Resource({ }, { })` | `Resource({ }, { })` | Identical API |
-| `Schedule.recurs(n)` | `Schedule.recurs(n)` | Identical API |
-| `parMap(concurrency) { }` | `traverse(concurrency) { }` | Standard FP naming |
+| `parZip(f1, f2, ...) { a, b, ... -> }` | `liftA3(f1, f2, f3) { }` or `lift3(::R).ap{f1}.ap{f2}.ap{f3}` | `kap-core` |
+| Nested `parZip` for phases | `.followedBy { }` | `kap-core` |
+| `zipOrAccumulate(f1, ...) { }` | `zipV(f1, ...) { }` — up to 22 | `kap-arrow` |
+| `either { ... }` | `validated { }` / `accumulate { }` | `kap-arrow` |
+| `Resource({ }, { })` | `Resource({ }, { })` — identical API | `kap-resilience` |
+| `Schedule.recurs(n)` | `Schedule.recurs(n)` — identical API | `kap-resilience` |
+| `parMap(concurrency) { }` | `traverse(concurrency) { }` | `kap-core` |
 
 ---
 
@@ -1358,7 +1442,7 @@ Source: [`ApplicativeLawsTest.kt`](src/jvmTest/kotlin/applicative/ApplicativeLaw
 
 All arities are **unified at 22** — the maximum supported by Kotlin's function types.
 
-### Core
+### `kap-core` — Orchestration Primitives
 
 | Combinator | Semantics | Parallelism |
 |---|---|---|
@@ -1377,7 +1461,6 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `.ensureNotNull(error) { extract }` | Extract non-null or throw — avoids nested null checks | — |
 | `.on(context)` / `.named(name)` | Dispatcher / coroutine name | — |
 | `.void()` / `.tap { }` | Discard result / side-effect | — |
-| `.attempt()` | Catch to `Either<Throwable, A>` | — |
 | `.await()` | Execute a `Computation` from any suspend context | — |
 | `.orElse(other)` | Sequential fallback on failure (CancellationException always propagates) | Sequential |
 | `firstSuccessOf(c1, c2, ...)` | Try each sequentially, return first success | Sequential |
@@ -1386,7 +1469,7 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `.settled()` | Wrap outcome in `Result` (no sibling cancellation) | — |
 | `.zipLeft` / `.zipRight` | Parallel, keep one result | Parallel |
 
-### Collections
+#### Collections
 
 | Combinator | Semantics | Parallelism |
 |---|---|---|
@@ -1399,19 +1482,26 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `sequenceSettled()` / `sequenceSettled(n)` | Collect ALL results from collection | Parallel (bounded) |
 
 | `race` / `raceN` / `raceAll` | First to succeed | Competitive |
-| `raceQuorum(required, c1, c2, ...)` | N-of-M quorum race (hedged/consensus) | Competitive |
-| `raceEither(fa, fb)` | First to succeed, different types | Competitive |
-
 > **Design choice — no `parZip` / `parMap`:** All composition is parallel by default. The `par` prefix (Arrow/Cats naming) implies parallelism is a special mode — here it's the only mode. **Equivalents:** `parZip(f1, f2) { }` -> `mapN(f1, f2) { }` or `lift2(::R).ap{f1}.ap{f2}`. `parMap { }` -> `traverse { }`.
 
-### Error Handling, Retry & Schedule
+#### Interop & Observability
 
 | Combinator | Semantics |
 |---|---|
-| `recover` / `recoverWith` / `fallback` | Catch and recover |
-| `timeout(d)` / `timeout(d, default)` / `timeout(d, comp)` | Time-bounded |
+| `Deferred.toComputation()` / `Computation.toDeferred(scope)` | Deferred bridge |
+| `Flow.firstAsComputation()` / `(suspend () -> A).toComputation()` | Flow/lambda bridge |
+| `Computation.toFlow()` / `Flow.collectAsComputation()` | Flow <-> Computation |
+| `Flow.mapComputation(concurrency) { }` / `Flow.filterComputation { }` | Flow + Computation pipeline (completion order) |
+| `Flow.mapComputationOrdered(concurrency) { }` | Flow + Computation pipeline (upstream order preserved) |
+| `catching { }` | Exception-safe `Result<A>` construction |
+| `traced(name, tracer)` / `traced(name, onStart, onSuccess, onError)` | Observability hooks |
+| `delayed(d, value)` / `apOrNull` | Utilities |
+
+### `kap-resilience` — Retry, Resources & Protection
+
+| Combinator | Semantics |
+|---|---|
 | `timeoutRace(d, fallback)` | Parallel timeout (fallback starts immediately) |
-| `retry(n, delay, backoff, shouldRetry, onRetry)` | Configurable retry |
 | `retry(schedule)` / `retry(scheduleFactory)` / `retryOrElse(schedule, fallback)` | Schedule-based retry (factory overload for stateful schedules) |
 | `retryWithResult(schedule)` | Retry returning `RetryResult(value, attempts, totalDelay)` |
 | `Schedule.recurs` / `.spaced` / `.exponential` / `.fibonacci` / `.linear` / `.forever` | Backoff strategies |
@@ -1421,8 +1511,21 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `schedule.fold(init) { acc, a -> }` | Accumulate values across retries |
 | `CircuitBreaker(maxFailures, resetTimeout)` | Protect downstream from cascading failures |
 | `.withCircuitBreaker(breaker)` | Wrap computation with circuit breaker |
+| `raceQuorum(required, c1, c2, ...)` | N-of-M quorum race (hedged/consensus) |
 
-### Validation (Error Accumulation)
+#### Resource Safety
+
+| Combinator | Semantics |
+|---|---|
+| `bracket(acquire, use, release)` | Guaranteed cleanup (NonCancellable) |
+| `bracketCase(acquire, use, release)` | Cleanup with `ExitCase` (commit/rollback) |
+| `guarantee` / `guaranteeCase` | Finalizers with optional `ExitCase` |
+| `Resource(acquire, release)` | Composable resource monad |
+| `Resource.zip(r1..r22, f)` | Combine up to 22 resources |
+| `Resource.defer { }` | Lazy/conditional resource construction |
+| `resource.use` / `resource.useWithTimeout` / `resource.useComputation` | Terminal operations |
+
+### `kap-arrow` — Validation & Arrow Integration
 
 | Combinator | Semantics |
 |---|---|
@@ -1436,53 +1539,28 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 | `ensureV(error) { pred }` / `ensureVAll(errors) { pred }` | Predicate-based validated guards |
 | `recoverV` / `mapV` / `mapError` / `orThrow` | Transforms |
 | `traverseV` / `sequenceV` | Collection operations with accumulation |
-
-### Resource Safety
-
-| Combinator | Semantics |
-|---|---|
-| `bracket(acquire, use, release)` | Guaranteed cleanup (NonCancellable) |
-| `bracketCase(acquire, use, release)` | Cleanup with `ExitCase` (commit/rollback) |
-| `guarantee` / `guaranteeCase` | Finalizers with optional `ExitCase` |
-| `Resource(acquire, release)` | Composable resource monad |
-| `Resource.zip(r1..r22, f)` | Combine up to 22 resources |
-| `Resource.defer { }` | Lazy/conditional resource construction |
-| `resource.use` / `resource.useWithTimeout` / `resource.useComputation` | Terminal operations |
-
-### Interop & Observability
-
-| Combinator | Semantics |
-|---|---|
-| `Deferred.toComputation()` / `Computation.toDeferred(scope)` | Deferred bridge |
-| `Flow.firstAsComputation()` / `(suspend () -> A).toComputation()` | Flow/lambda bridge |
-| `Computation.toFlow()` / `Flow.collectAsComputation()` | Flow <-> Computation |
-| `Flow.mapComputation(concurrency) { }` / `Flow.filterComputation { }` | Flow + Computation pipeline (completion order) |
-| `Flow.mapComputationOrdered(concurrency) { }` | Flow + Computation pipeline (upstream order preserved) |
-| `Result.toEither()` / `Either.toResult()` / `Result.toValidated()` | Kotlin Result bridge |
-| `Either.catch { }` / `Either.catchNonFatal { }` | Exception-safe Either construction |
-| `Either.ensure` / `.filterOrElse` / `.getOrHandle` / `.handleErrorWith` | Either combinators |
-| `Either.recover` / `.orNull` / `.tapLeft` | Recovery and inspection |
-| `Either.zip(other) { }` / `.toValidatedNel()` | Either composition & bridge |
-| `Iterable.traverseEither(f)` / `Iterable<Either>.sequence()` | Collection operations |
-| `traced(name, tracer)` / `traced(name, onStart, onSuccess, onError)` | Observability hooks |
-| `delayed(d, value)` / `catching { }` / `apOrNull` | Utilities |
+| `.attempt()` | Catch to Arrow's `Either<Throwable, A>` |
+| `raceEither(fa, fb)` | First to succeed, different types (returns `Either<A, B>`) |
+| `Result.toEither()` / `Either.toResult()` / `Result.toValidated()` | Kotlin Result <-> Arrow Either bridges |
+| `fromArrow { }` / `Computation.runCatchingArrow(scope)` | Arrow interop bridges |
 
 ---
 
 ## When to Use (and When Not To)
 
-**This library shines when:**
-- You have 4+ concurrent operations with sequential phases (BFF, checkout, booking)
-- You need parallel error accumulation across validators
-- The dependency graph should be visible in code shape
-- You want compile-time parameter order safety
-- You need composable retry/timeout/race policies
+**KAP shines when:**
+- You have 4+ concurrent operations with sequential phases (BFF, checkout, booking) → `kap-core`
+- You need parallel error accumulation across validators → add `kap-arrow`
+- The dependency graph should be visible in code shape → `kap-core`
+- You want compile-time parameter order safety → `kap-core`
+- You need composable retry/timeout/race policies → add `kap-resilience`
+- You want all of the above without pulling Arrow into your entire project → `kap-core` + `kap-resilience` (zero Arrow dep)
 
 **Use something else when:**
 - 2-3 simple parallel calls — `coroutineScope { async {} }` is enough
 - Purely sequential code — regular `suspend` functions
 - Stream processing — use `Flow`
-- Full FP ecosystem (optics, typeclasses) — use Arrow
+- Full FP ecosystem (optics, typeclasses) — use Arrow directly
 
 **Target audience:** BFF layers, checkout/booking flows, dashboard aggregation, multi-service orchestration.
 
@@ -1490,30 +1568,49 @@ All arities are **unified at 22** — the maximum supported by Kotlin's function
 
 ## Examples
 
-Full working examples in [`/examples`](examples/):
+Six runnable examples in [`/examples`](examples/) covering **every module combination**:
 
-- **[ecommerce-checkout](examples/ecommerce-checkout/)** — 11 services, 5 phases
-- **[dashboard-aggregator](examples/dashboard-aggregator/)** — 14-service BFF
-- **[validated-registration](examples/validated-registration/)** — multi-scenario parallel validation with error accumulation
-- **[ktor-integration](examples/ktor-integration/)** — Ktor HTTP server with multi-phase aggregation, parallel validation, and resilience stack
+| Example | Modules | What it demonstrates |
+|---|---|---|
+| **[ecommerce-checkout](examples/ecommerce-checkout/)** | `kap-core` | 11 services, 5 phases — `lift11`+`ap`+`followedBy` |
+| **[dashboard-aggregator](examples/dashboard-aggregator/)** | `kap-core` | 14-service BFF — `lift14`, type-safe at 14 args |
+| **[validated-registration](examples/validated-registration/)** | `kap-core` + `kap-arrow` | Parallel validation, error accumulation, phased validation with `flatMapV` |
+| **[ktor-integration](examples/ktor-integration/)** | `kap-core` + `kap-arrow` | Ktor HTTP server with validated endpoints |
+| **[resilient-fetcher](examples/resilient-fetcher/)** | `kap-core` + `kap-resilience` | `Schedule`, `CircuitBreaker`, `bracket`, `Resource.zip`, `timeoutRace`, `raceQuorum`, `retryOrElse`, `retryWithResult` |
+| **[full-stack-order](examples/full-stack-order/)** | `kap-core` + `kap-resilience` + `kap-arrow` | Validated input + retry/CB/bracket + `attempt`/`raceEither` — complete pipeline using all three modules |
 
-Arrow interop module: [`/arrow-interop`](arrow-interop/) — optional bridges for `Either`, `NonEmptyList`, `parZip`.
+Each example's `build.gradle.kts` includes comments with the equivalent Maven coordinates for standalone use.
 
 ---
 
 ## Building
 
 ```bash
-./gradlew jvmTest              # recommended first command: all tests, no Xcode needed
-./gradlew build                # full build (auto-skips Apple targets without Xcode)
-./gradlew :arrow-interop:test  # Arrow interop tests
-./gradlew :benchmarks:jmh      # JMH benchmarks
-./gradlew dokkaHtml             # API docs
-./gradlew generateAll           # regenerate all overloads (arities 2-22)
+# Tests per module
+./gradlew :kap-core:jvmTest          # core tests (438 tests)
+./gradlew :kap-resilience:jvmTest    # resilience tests (164 tests)
+./gradlew :kap-arrow:test            # arrow integration tests (223 tests)
+./gradlew :benchmarks:test           # benchmark comparison tests (81 tests)
+
+# All tests at once
+./gradlew jvmTest                    # recommended first command
+
+# Full build
+./gradlew build                      # auto-skips Apple targets without Xcode
+
+# Examples
+./gradlew :examples:ecommerce-checkout:run
+./gradlew :examples:resilient-fetcher:run
+./gradlew :examples:full-stack-order:run
+
+# Benchmarks & docs
+./gradlew :benchmarks:jmh            # JMH benchmarks
+./gradlew dokkaHtml                   # API docs
+./gradlew generateAll                 # regenerate all overloads (arities 2-22)
 ```
 
-> **First time?** Start with `./gradlew jvmTest` — it runs all tests on JVM
-> without needing Xcode or native toolchains.
+> **First time?** Start with `./gradlew :kap-core:jvmTest` — it runs the core
+> module tests on JVM without needing Xcode, Arrow, or native toolchains.
 >
 > **Native targets:** Apple targets (iOS, macOS) are automatically skipped when
 > Xcode is not installed. Linux Native compiles with just the Kotlin toolchain.

@@ -1,4 +1,7 @@
 import applicative.*
+import arrow.core.Either
+import arrow.core.NonEmptyList
+import arrow.core.nonEmptyListOf
 import kotlinx.coroutines.delay
 
 /**
@@ -36,19 +39,19 @@ data class User(val name: ValidName, val email: ValidEmail, val age: ValidAge, v
 suspend fun validateName(name: String): Either<NonEmptyList<RegError>, ValidName> {
     delay(50)
     return if (name.length >= 2) Either.Right(ValidName(name))
-    else Either.Left(RegError.InvalidName("Name must be at least 2 characters").toNonEmptyList())
+    else Either.Left(nonEmptyListOf(RegError.InvalidName("Name must be at least 2 characters")))
 }
 
 suspend fun validateEmail(email: String): Either<NonEmptyList<RegError>, ValidEmail> {
     delay(60)
     return if ("@" in email && "." in email) Either.Right(ValidEmail(email))
-    else Either.Left(RegError.InvalidEmail("Invalid email format").toNonEmptyList())
+    else Either.Left(nonEmptyListOf(RegError.InvalidEmail("Invalid email format")))
 }
 
 suspend fun validateAge(age: Int): Either<NonEmptyList<RegError>, ValidAge> {
     delay(30)
     return if (age in 13..120) Either.Right(ValidAge(age))
-    else Either.Left(RegError.InvalidAge("Age must be between 13 and 120").toNonEmptyList())
+    else Either.Left(nonEmptyListOf(RegError.InvalidAge("Age must be between 13 and 120")))
 }
 
 suspend fun validatePassword(password: String): Either<NonEmptyList<RegError>, ValidPassword> {
@@ -65,7 +68,7 @@ suspend fun checkUsernameAvailable(username: String): Either<NonEmptyList<RegErr
     delay(100) // simulate DB lookup
     val taken = setOf("admin", "root", "alice")
     return if (username.lowercase() !in taken) Either.Right(ValidUsername(username))
-    else Either.Left(RegError.UsernameTaken("Username '$username' is already taken").toNonEmptyList())
+    else Either.Left(nonEmptyListOf(RegError.UsernameTaken("Username '$username' is already taken")))
 }
 
 suspend fun main() {

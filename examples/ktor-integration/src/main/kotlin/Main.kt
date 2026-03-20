@@ -7,6 +7,9 @@
  * 3. GET /fast-user/{userId}  — resilience stack (timeout+retry+recover)
  */
 import applicative.*
+import arrow.core.Either
+import arrow.core.NonEmptyList
+import arrow.core.nonEmptyListOf
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -70,15 +73,15 @@ suspend fun countNotifications(userId: String): Int {
 
 fun validateName(name: String): Either<NonEmptyList<String>, String> =
     if (name.length >= 2) Either.Right(name)
-    else Either.Left(NonEmptyList("Name must be at least 2 characters"))
+    else Either.Left(nonEmptyListOf("Name must be at least 2 characters"))
 
 fun validateEmail(email: String): Either<NonEmptyList<String>, String> =
     if ("@" in email) Either.Right(email)
-    else Either.Left(NonEmptyList("Invalid email format"))
+    else Either.Left(nonEmptyListOf("Invalid email format"))
 
 fun validateAge(age: Int): Either<NonEmptyList<String>, Int> =
     if (age >= 18) Either.Right(age)
-    else Either.Left(NonEmptyList("Must be at least 18 years old"))
+    else Either.Left(nonEmptyListOf("Must be at least 18 years old"))
 
 // ── Ktor application ───────────────────────────────────────────────────
 
