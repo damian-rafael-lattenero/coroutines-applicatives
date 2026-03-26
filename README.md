@@ -108,7 +108,7 @@ No intermediate variables. The constructor receives all arguments at once — no
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.damian-rafael-lattenero:kap-core:2.3.1")
+    implementation("io.github.damian-rafael-lattenero:kap-core:2.3.0")
 }
 ```
 
@@ -119,7 +119,7 @@ dependencies {
 <dependency>
     <groupId>io.github.damian-rafael-lattenero</groupId>
     <artifactId>kap-core-jvm</artifactId>
-    <version>2.3.1</version>
+    <version>2.3.0</version>
 </dependency>
 ```
 
@@ -497,11 +497,11 @@ val result: Either<NonEmptyList<RegError>, User> = Async {
 
 ```kotlin
 dependencies {
-    implementation("io.github.damian-rafael-lattenero:kap-core:2.3.1")
+    implementation("io.github.damian-rafael-lattenero:kap-core:2.3.0")
 
     // Optional
-    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.3.1")
-    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.3.1")
+    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.3.0")
+    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.3.0")
 }
 ```
 
