@@ -457,40 +457,37 @@ fun <A, B> Effect<A>.keepSecond(other: Effect<B>): Effect<B> = Effect {
 fun <A> Effect<A>.memoize(): Effect<A> =
     Memoized(this)
 
+internal class ValueHolder<A>(val value: A)
+
 private class Memoized<A>(private val original: Effect<A>) : Effect<A> {
     private val lock = kotlinx.coroutines.sync.Mutex()
-    @kotlin.concurrent.Volatile private var cached: Any? = UNSET
+    @kotlin.concurrent.Volatile private var cached: ValueHolder<A>? = null
     @kotlin.concurrent.Volatile private var cachedError: Throwable? = null
 
     // ── Fast path (lock-free) ──────────────────────────────────────────
     // Both `cached` and `cachedError` are @Volatile, guaranteeing
-    // happens-before visibility across threads. The UNSET sentinel is
-    // a private instance — identity comparison is safe.
+    // happens-before visibility across threads.
     //
     // This double-checked locking pattern avoids the Mutex on the
     // hot path (cache hit) while remaining correct under concurrency:
-    // 1. Read `cached` — if not UNSET, return immediately (no lock).
+    // 1. Read `cached` — if non-null, return immediately (no lock).
     // 2. Read `cachedError` — if non-null, rethrow immediately (no lock).
     // 3. Only on cache miss: acquire lock, re-check, then execute.
     //
     // The worst-case race is a redundant lock acquisition (benign).
     override suspend fun CoroutineScope.execute(): A {
         // Fast path: already cached (success or failure)
-        @Suppress("UNCHECKED_CAST")
-        val c = cached
-        if (c !== UNSET) return c as A
+        cached?.let { return it.value }
         cachedError?.let { throw it }
 
         lock.lock()
         try {
             // Re-check after acquiring lock
-            @Suppress("UNCHECKED_CAST")
-            val c2 = cached
-            if (c2 !== UNSET) return c2 as A
+            cached?.let { return it.value }
             cachedError?.let { throw it }
 
             val value = with(original) { execute() }
-            cached = value
+            cached = ValueHolder(value)
             return value
         } catch (e: CancellationException) {
             // Cancellation NEVER poisons the cache — next caller retries.
@@ -502,10 +499,6 @@ private class Memoized<A>(private val original: Effect<A>) : Effect<A> {
         } finally {
             lock.unlock()
         }
-    }
-
-    companion object {
-        private val UNSET = Any()
     }
 }
 
@@ -535,31 +528,23 @@ fun <A> Effect<A>.memoizeOnSuccess(): Effect<A> =
 
 private class MemoizedOnSuccess<A>(private val original: Effect<A>) : Effect<A> {
     private val lock = kotlinx.coroutines.sync.Mutex()
-    @kotlin.concurrent.Volatile private var cached: Any? = UNSET
+    @kotlin.concurrent.Volatile private var cached: ValueHolder<A>? = null
 
     // Fast path: volatile read avoids lock acquisition on cache hit.
     // See Memoized class above for the full concurrency rationale.
     override suspend fun CoroutineScope.execute(): A {
-        @Suppress("UNCHECKED_CAST")
-        val c = cached
-        if (c !== UNSET) return c as A
+        cached?.let { return it.value }
         lock.lock()
         try {
-            @Suppress("UNCHECKED_CAST")
-            val c2 = cached
-            if (c2 !== UNSET) return c2 as A
+            cached?.let { return it.value }
             val value = with(original) { execute() }
-            cached = value
+            cached = ValueHolder(value)
             return value
         } catch (e: Throwable) {
             throw e  // failure NOT cached — next caller retries
         } finally {
             lock.unlock()
         }
-    }
-
-    companion object {
-        private val UNSET = Any()
     }
 }
 

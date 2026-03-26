@@ -24,16 +24,12 @@ fun <A> Effect<A>.timeout(duration: Duration): Effect<A> = Effect {
  * confused with a timeout.
  */
 fun <A> Effect<A>.timeout(duration: Duration, default: A): Effect<A> = Effect {
-    var completed = false
-    val result = withTimeoutOrNull(duration) {
-        with(this@timeout) { execute() }.also { completed = true }
+    var holder: ValueHolder<A>? = null
+    withTimeoutOrNull(duration) {
+        holder = ValueHolder(with(this@timeout) { execute() })
     }
-    if (completed) {
-        @Suppress("UNCHECKED_CAST")
-        result as A
-    } else {
-        default
-    }
+    val h = holder
+    if (h != null) h.value else default
 }
 
 /**
@@ -44,16 +40,12 @@ fun <A> Effect<A>.timeout(duration: Duration, default: A): Effect<A> = Effect {
  * confused with a timeout.
  */
 fun <A> Effect<A>.timeout(duration: Duration, fallback: Effect<A>): Effect<A> = Effect {
-    var completed = false
-    val result = withTimeoutOrNull(duration) {
-        with(this@timeout) { execute() }.also { completed = true }
+    var holder: ValueHolder<A>? = null
+    withTimeoutOrNull(duration) {
+        holder = ValueHolder(with(this@timeout) { execute() })
     }
-    if (completed) {
-        @Suppress("UNCHECKED_CAST")
-        result as A
-    } else {
-        with(fallback) { execute() }
-    }
+    val h = holder
+    if (h != null) h.value else with(fallback) { execute() }
 }
 
 // ── recover ──────────────────────────────────────────────────────────────

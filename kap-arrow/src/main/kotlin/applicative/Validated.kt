@@ -55,11 +55,15 @@ infix fun <E, A, B> Effect<Either<NonEmptyList<E>, (A) -> B>>.withV(
 private fun <E, A, B> combineValidated(
     ef: Either<NonEmptyList<E>, (A) -> B>,
     ea: Either<NonEmptyList<E>, A>,
-): Either<NonEmptyList<E>, B> = when {
-    ef is Either.Right && ea is Either.Right -> Either.Right(ef.value(ea.value))
-    ef is Either.Left && ea is Either.Left -> Either.Left(ef.value + ea.value)
-    ef is Either.Left -> ef
-    else -> @Suppress("UNCHECKED_CAST") (ea as Either.Left<NonEmptyList<E>>)
+): Either<NonEmptyList<E>, B> = when (ef) {
+    is Either.Right -> when (ea) {
+        is Either.Right -> Either.Right(ef.value(ea.value))
+        is Either.Left -> ea
+    }
+    is Either.Left -> when (ea) {
+        is Either.Right -> ef
+        is Either.Left -> Either.Left(ef.value + ea.value)
+    }
 }
 
 /** Convenience overload that wraps a suspend lambda returning [Either]. */
@@ -303,7 +307,11 @@ fun <E, F, A> Effect<Either<NonEmptyList<E>, A>>.mapError(f: (E) -> F): Effect<E
 // ── validated { } builder: short-circuit DSL ────────────────────────────
 
 @PublishedApi
-internal class ValidatedShortCircuit(val errors: NonEmptyList<*>) : ControlFlowException()
+internal class ValidatedShortCircuit(val errors: NonEmptyList<Any?>) : ControlFlowException() {
+    /** Type-safe accessor — safe because the scope that throws this always uses NonEmptyList<E>. */
+    @Suppress("UNCHECKED_CAST")
+    fun <E> typedErrors(): NonEmptyList<E> = errors as NonEmptyList<E>
+}
 
 /**
  * Scope for the [validated] builder, providing [bind] for short-circuit
@@ -340,13 +348,12 @@ class ValidatedScope<E> @PublishedApi internal constructor(
  * Provides [ValidatedScope.bind] to unwrap [Either.Right] values or
  * short-circuit on [Either.Left].
  */
-@Suppress("UNCHECKED_CAST")
 fun <E, A> validated(block: suspend ValidatedScope<E>.() -> A): Effect<Either<NonEmptyList<E>, A>> =
     Effect {
         try {
             Either.Right(ValidatedScope<E>(this).block())
         } catch (e: ValidatedShortCircuit) {
-            Either.Left(e.errors as NonEmptyList<E>)
+            Either.Left(e.typedErrors())
         }
     }
 
@@ -354,6 +361,5 @@ fun <E, A> validated(block: suspend ValidatedScope<E>.() -> A): Effect<Either<No
  * Alias for [validated] — parallel error accumulation within phases,
  * sequential short-circuit between phases.
  */
-@Suppress("UNCHECKED_CAST")
 fun <E, A> accumulate(block: suspend ValidatedScope<E>.() -> A): Effect<Either<NonEmptyList<E>, A>> =
     validated(block)

@@ -60,7 +60,7 @@ fun <A> Effect<A>.retry(
         }
     }
     @Suppress("UNREACHABLE_CODE")
-    throw IllegalStateException("unreachable")
+    error("unreachable")
 }
 
 /**
@@ -118,7 +118,7 @@ fun <A> Effect<A>.retryOrElse(
         }
     }
     @Suppress("UNREACHABLE_CODE")
-    throw IllegalStateException("unreachable")
+    error("unreachable")
 }
 
 // ── retry with result metadata ───────────────────────────────────────────
@@ -172,5 +172,5 @@ fun <A> Effect<A>.retryWithResult(
         }
     }
     @Suppress("UNREACHABLE_CODE")
-    throw IllegalStateException("unreachable")
+    error("unreachable")
 }

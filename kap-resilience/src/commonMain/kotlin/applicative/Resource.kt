@@ -81,7 +81,7 @@ class Resource<out A> @PublishedApi internal constructor(
         var box: Result<B>? = null
         bind { a -> box = Result.success(f(a)) }
         return box?.getOrThrow()
-            ?: throw IllegalStateException("Resource bind did not invoke use callback")
+            ?: error("Resource bind did not invoke use callback")
     }
 
     /**
@@ -98,7 +98,7 @@ class Resource<out A> @PublishedApi internal constructor(
             box = Result.success(withTimeout(duration) { f(a) })
         }
         return box?.getOrThrow()
-            ?: throw IllegalStateException("Resource bind did not invoke use callback")
+            ?: error("Resource bind did not invoke use callback")
     }
 
     /**
@@ -115,14 +115,10 @@ class Resource<out A> @PublishedApi internal constructor(
      * ```
      */
     fun <B> useEffect(f: (A) -> Effect<B>): Effect<B> = Effect {
-        var result: B? = null
-        var completed = false
+        var box: Result<B>? = null
         this@Resource.bind { a ->
-            result = with(f(a)) { execute() }
-            completed = true
+            box = Result.success(with(f(a)) { execute() })
         }
-        if (!completed) throw IllegalStateException("Resource bind did not complete")
-        @Suppress("UNCHECKED_CAST")
-        result as B
+        (box ?: error("Resource bind did not complete")).getOrThrow()
     }
 }

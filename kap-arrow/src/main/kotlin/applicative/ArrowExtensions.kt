@@ -67,41 +67,31 @@ fun <A> Effect<A>.attempt(): Effect<Either<Throwable, A>> = Effect {
 @OptIn(ExperimentalCoroutinesApi::class)
 fun <A, B> raceEither(fa: Effect<A>, fb: Effect<B>): Effect<Either<A, B>> = Effect {
     supervisorScope {
-        val da = async { runCatching { with(fa) { execute() } } }
-        val db = async { runCatching { with(fb) { execute() } } }
+        val da: Deferred<Result<A>> = async { runCatching { with(fa) { execute() } } }
+        val db: Deferred<Result<B>> = async { runCatching { with(fb) { execute() } } }
         try {
-            val (firstIsA, firstResult, other) = select<Triple<Boolean, Result<*>, Deferred<*>>> {
-                da.onAwait { Triple(true, it, db) }
-                db.onAwait { Triple(false, it, da) }
-            }
-            if (firstIsA) {
-                firstResult.getOrNull()?.let {
-                    @Suppress("UNCHECKED_CAST")
-                    return@supervisorScope Either.Left(it as A)
+            select<Either<A, B>> {
+                da.onAwait { resultA ->
+                    resultA.getOrNull()?.let { return@onAwait Either.Left(it) }
+                    // A failed — wait for B
+                    val resultB = db.await()
+                    resultB.getOrNull()?.let { return@onAwait Either.Right(it) }
+                    // Both failed
+                    val errA = resultA.exceptionOrNull()!!
+                    errA.addSuppressed(resultB.exceptionOrNull()!!)
+                    throw errA
                 }
-            } else {
-                firstResult.getOrNull()?.let {
-                    @Suppress("UNCHECKED_CAST")
-                    return@supervisorScope Either.Right(it as B)
-                }
-            }
-            @Suppress("UNCHECKED_CAST")
-            val secondResult = (other as Deferred<Result<*>>).await()
-            if (!firstIsA) {
-                secondResult.getOrNull()?.let {
-                    @Suppress("UNCHECKED_CAST")
-                    return@supervisorScope Either.Left(it as A)
-                }
-            } else {
-                secondResult.getOrNull()?.let {
-                    @Suppress("UNCHECKED_CAST")
-                    return@supervisorScope Either.Right(it as B)
+                db.onAwait { resultB ->
+                    resultB.getOrNull()?.let { return@onAwait Either.Right(it) }
+                    // B failed — wait for A
+                    val resultA = da.await()
+                    resultA.getOrNull()?.let { return@onAwait Either.Left(it) }
+                    // Both failed
+                    val errB = resultB.exceptionOrNull()!!
+                    errB.addSuppressed(resultA.exceptionOrNull()!!)
+                    throw errB
                 }
             }
-            val firstError = firstResult.exceptionOrNull()!!
-            val secondError = secondResult.exceptionOrNull()!!
-            firstError.addSuppressed(secondError)
-            throw firstError
         } catch (e: CancellationException) {
             throw e
         } finally {
