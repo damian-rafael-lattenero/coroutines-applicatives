@@ -4,11 +4,11 @@ Multi-service orchestration for Kotlin coroutines. Flat chains, visible phases, 
 
 **Your code shape *is* the execution plan.**
 
-[![CI](https://github.com/damian-rafael-lattenero/coroutines-applicatives/actions/workflows/ci.yml/badge.svg)](https://github.com/damian-rafael-lattenero/coroutines-applicatives/actions/workflows/ci.yml)
+[![CI](https://github.com/damian-rafael-lattenero/kap/actions/workflows/ci.yml/badge.svg)](https://github.com/damian-rafael-lattenero/kap/actions/workflows/ci.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-blue.svg)](https://kotlinlang.org)
 [![Coroutines](https://img.shields.io/badge/Coroutines-1.10.2-blue.svg)](https://github.com/Kotlin/kotlinx.coroutines)
 [![Tests](https://img.shields.io/badge/Tests-906%20across%2061%20suites-brightgreen.svg)](#benchmarks)
-[![Benchmarks](https://img.shields.io/badge/Benchmarks-119%20JMH-blueviolet.svg)](https://damian-rafael-lattenero.github.io/coroutines-applicatives/benchmarks/)
+[![Benchmarks](https://img.shields.io/badge/Benchmarks-119%20JMH-blueviolet.svg)](https://damian-rafael-lattenero.github.io/kap/benchmarks/)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Multiplatform](https://img.shields.io/badge/Multiplatform-JVM%20%7C%20JS%20%7C%20Native-orange.svg)](#)
@@ -584,7 +584,7 @@ Seven runnable examples in [`/examples`](examples/):
 
 All claims backed by **119 JMH benchmarks** and deterministic virtual-time proofs. No flaky timing assertions — `runTest` + `currentTime` gives provably correct results.
 
-> **Environment:** JDK 21, Ubuntu 24.04. JMH 1.37. [Live dashboard](https://damian-rafael-lattenero.github.io/coroutines-applicatives/benchmarks/).
+> **Environment:** JDK 21, Ubuntu 24.04. JMH 1.37. [Live dashboard](https://damian-rafael-lattenero.github.io/kap/benchmarks/).
 
 | Dimension | Raw Coroutines | Arrow | KAP |
 |---|---|---|---|
@@ -740,7 +740,7 @@ Release (tag vX.Y.Z)
 └── verify            Wait for Maven Central sync -> run examples against real artifacts
 ```
 
-[Benchmark dashboard](https://damian-rafael-lattenero.github.io/coroutines-applicatives/benchmarks/) — regression alerts on every push.
+[Benchmark dashboard](https://damian-rafael-lattenero.github.io/kap/benchmarks/) — regression alerts on every push.
 
 </details>
 

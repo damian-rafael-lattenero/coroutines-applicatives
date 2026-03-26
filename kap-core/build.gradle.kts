@@ -228,7 +228,7 @@ mavenPublishing {
         name.set("kap-core")
         description.set("KAP — lean DSL for parallel orchestration with Kotlin coroutines")
         inceptionYear.set("2025")
-        url.set("https://github.com/damian-rafael-lattenero/coroutines-applicatives")
+        url.set("https://github.com/damian-rafael-lattenero/kap")
 
         licenses {
             license {
@@ -245,9 +245,9 @@ mavenPublishing {
             }
         }
         scm {
-            url.set("https://github.com/damian-rafael-lattenero/coroutines-applicatives")
-            connection.set("scm:git:git://github.com/damian-rafael-lattenero/coroutines-applicatives.git")
-            developerConnection.set("scm:git:ssh://git@github.com/damian-rafael-lattenero/coroutines-applicatives.git")
+            url.set("https://github.com/damian-rafael-lattenero/kap")
+            connection.set("scm:git:git://github.com/damian-rafael-lattenero/kap.git")
+            developerConnection.set("scm:git:ssh://git@github.com/damian-rafael-lattenero/kap.git")
         }
     }
 }
