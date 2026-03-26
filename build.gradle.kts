@@ -5,10 +5,15 @@ plugins {
     alias(libs.plugins.maven.publish) apply false
 }
 
-allprojects {
-    group = "io.github.damian-rafael-lattenero"
-    version = "2.3.1"
+group = "io.github.damian-rafael-lattenero"
+version = "2.3.1"
 
+subprojects {
+    group = rootProject.group
+    version = rootProject.version
+}
+
+allprojects {
     repositories {
         mavenCentral()
     }
