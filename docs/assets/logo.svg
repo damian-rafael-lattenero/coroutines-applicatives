@@ -20,9 +20,9 @@
   <circle cx="68" cy="72" r="18" fill="white"/>
   <path d="M57,60 L79,60 L68,72 L79,84 L57,84 Z" fill="url(#grad-dark)"/>
 
-  <!-- "p" as vector path -->
-  <circle cx="141" cy="100" r="8" fill="none" stroke="rgba(127,82,255,0.5)" stroke-width="2.5"/>
-  <line x1="133" y1="92" x2="133" y2="114" stroke="rgba(127,82,255,0.5)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- "p" as vector path — larger, inside the mouth -->
+  <circle cx="135" cy="98" r="10" fill="none" stroke="rgba(127,82,255,0.55)" stroke-width="3"/>
+  <line x1="125" y1="88" x2="125" y2="116" stroke="rgba(127,82,255,0.55)" stroke-width="3" stroke-linecap="round"/>
 
   <!-- Mouth highlights -->
   <line x1="100" y1="100" x2="172" y2="57" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" stroke-linecap="round"/>
