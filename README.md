@@ -67,24 +67,59 @@ val checkout = coroutineScope {
 }
 ```
 
-**Arrow** — Parallel within phases, but sequential between them, phases still invisible:
+**Arrow** — Parallel within phases, but you need intermediate data classes to carry values across boundaries:
 
 ```kotlin
-val phase1 = parZip(
-    { fetchUser() }, { fetchCart() }, { fetchPromos() }, { fetchInventory() },
-) { u, c, p, i -> "$u|$c|$p|$i" }                  // where does phase 1 end?
-val stock = validateStock()                          // phase 2 — you have to read to know
-val phase3 = parZip(
-    { calcShipping() }, { calcTax() }, { calcDiscounts() },
-) { s, t, d -> Triple(s, t, d) }                    // phase 3
-val payment = reservePayment()                       // phase 4 — another invisible barrier
-val phase5 = parZip(
-    { generateConfirmation() }, { sendEmail() },
-) { c, e -> Pair(c, e) }                            // phase 5
-// Now you need to thread all values into the result manually:
-val checkout = CheckoutResult(/* destructure phase1?? */)
-// parZip maxes at 9 args. Result types lost across phase boundaries.
-// No compile-time ordering safety. No flat chain.
+// You need these just to pass values between phases:
+data class Phase1(val user: UserProfile, val cart: ShoppingCart,
+                  val promos: PromotionBundle, val inventory: InventorySnapshot)
+data class Phase3(val shipping: ShippingQuote, val tax: TaxBreakdown,
+                  val discounts: DiscountSummary)
+
+// Phase 1: parallel fetch
+val p1 = parZip(
+    { fetchUser() },
+    { fetchCart() },
+    { fetchPromos() },
+    { fetchInventory() },
+) { user, cart, promos, inventory ->   // parZip maxes at 9 args
+    Phase1(user, cart, promos, inventory)
+}
+
+// Phase 2: barrier (just a suspend call, no explicit marker)
+val stock = validateStock()
+
+// Phase 3: parallel calculations
+val p3 = parZip(
+    { calcShipping() },
+    { calcTax() },
+    { calcDiscounts() },
+) { shipping, tax, discounts ->
+    Phase3(shipping, tax, discounts)
+}
+
+// Phase 4: barrier
+val payment = reservePayment()
+
+// Phase 5: parallel finalization
+val p5 = parZip(
+    { generateConfirmation() },
+    { sendEmail() },
+) { confirmation, email ->
+    Pair(confirmation, email)
+}
+
+// Assemble the result — manually thread all intermediate values:
+val checkout = CheckoutResult(
+    p1.user, p1.cart, p1.promos, p1.inventory,
+    stock,
+    p3.shipping, p3.tax, p3.discounts,
+    payment,
+    p5.first, p5.second,
+)
+// 40+ lines. Intermediate data classes. Manual assembly.
+// Phases exist but invisible — where does one end and the next begin?
+// Swap p1.user and p1.cart? Same type = no compiler error.
 ```
 
 **KAP** — 12 lines, explicit phases, compile-time safe:
