@@ -12,60 +12,146 @@ implementation("io.github.damian-rafael-lattenero:kap-core:2.3.0")
 
 ---
 
-## The Three Primitives
+## Parallel Execution — `kap` + `.with`
 
-### `.with { }` — Parallel Execution
+=== "Raw Coroutines"
 
-Every `.with` in the same phase runs concurrently. The typed function chain enforces argument order at compile time:
+    ```kotlin
+    val dashboard = coroutineScope {
+        val dUser = async { fetchUser() }
+        val dCart = async { fetchCart() }
+        val dPromos = async { fetchPromos() }
+        Dashboard(
+            dUser.await(),   // ← swap with dCart? Same type, no error
+            dCart.await(),
+            dPromos.await()
+        )
+    }
+    ```
+
+=== "Arrow"
+
+    ```kotlin
+    val dashboard = parZip(
+        { fetchUser() },
+        { fetchCart() },
+        { fetchPromos() },
+    ) { user, cart, promos ->    // ← swap user/cart? Same type, no error
+        Dashboard(user, cart, promos)
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val dashboard: Dashboard = Async {
+        kap(::Dashboard)
+            .with { fetchUser() }     // ┐ all three start at t=0
+            .with { fetchCart() }      // │ total time = max(individual)
+            .with { fetchPromos() }    // ┘ swap any two? COMPILE ERROR
+    }
+    ```
+
+KAP's typed function chain enforces argument order. Each `.with` must provide the next expected type.
+
+---
+
+## Phase Barriers — `.then`
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    val result = coroutineScope {
+        val dA = async { fetchA() }
+        val dB = async { fetchB() }
+        val a = dA.await()
+        val b = dB.await()
+        // Where does the barrier start? You have to read every line.
+        val validated = validate(a, b)
+        Result(a, b, validated)
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        kap(::Result)
+            .with { fetchA() }         // ┐ parallel
+            .with { fetchB() }         // ┘
+            .then { validate() }       // ── barrier: waits for A and B
+    }
+    ```
+
+`.then` creates an explicit synchronization point. Everything above must complete before anything below starts.
+
+---
+
+## Value-Dependent Phases — `.andThen`
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    // Phase 1
+    val ctx = coroutineScope {
+        val dProfile = async { fetchProfile(userId) }
+        val dPrefs = async { fetchPreferences(userId) }
+        val dTier = async { fetchLoyaltyTier(userId) }
+        UserContext(dProfile.await(), dPrefs.await(), dTier.await())
+    }
+    // Phase 2 — needs ctx
+    val enriched = coroutineScope {
+        val dRecs = async { fetchRecommendations(ctx.profile) }
+        val dPromos = async { fetchPromotions(ctx.tier) }
+        val dTrending = async { fetchTrending(ctx.prefs) }
+        val dHistory = async { fetchHistory(ctx.profile) }
+        EnrichedContent(dRecs.await(), dPromos.await(), dTrending.await(), dHistory.await())
+    }
+    // Phase 3 — needs both
+    val dashboard = coroutineScope {
+        val dLayout = async { renderLayout(ctx, enriched) }
+        val dTrack = async { trackAnalytics(ctx, enriched) }
+        FinalDashboard(dLayout.await(), dTrack.await())
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val dashboard: FinalDashboard = Async {
+        kap(::UserContext)
+            .with { fetchProfile(userId) }       // ┐
+            .with { fetchPreferences(userId) }   // ├─ phase 1
+            .with { fetchLoyaltyTier(userId) }   // ┘
+            .andThen { ctx ->                    // ── barrier: ctx available
+                kap(::EnrichedContent)
+                    .with { fetchRecommendations(ctx.profile) }  // ┐
+                    .with { fetchPromotions(ctx.tier) }           // ├─ phase 2
+                    .with { fetchTrending(ctx.prefs) }            // │
+                    .with { fetchHistory(ctx.profile) }           // ┘
+                    .andThen { enriched ->                         // ── barrier
+                        kap(::FinalDashboard)
+                            .with { renderLayout(ctx, enriched) }     // ┐ phase 3
+                            .with { trackAnalytics(ctx, enriched) }   // ┘
+                    }
+            }
+    }
+    ```
+
+24 lines of nested `coroutineScope`/`async`/`await` vs 14 lines of flat chain. The dependency graph **is** the code shape.
+
+---
+
+## `.thenValue` — Sequential Value Fill (No Barrier)
+
+Unlike `.then` which creates a real barrier, `.thenValue` fills a slot sequentially without blocking parallel siblings:
 
 ```kotlin
-data class Dashboard(val user: String, val cart: String, val promos: String)
-
-val result: Dashboard = Async {
-    kap(::Dashboard)
-        .with { fetchDashUser() }     // ┐ all three start at t=0
-        .with { fetchDashCart() }      // │ total time = max(individual)
-        .with { fetchDashPromos() }    // ┘ not sum
-}
-// Dashboard(user=Alice, cart=3 items, promos=SAVE20)
-```
-
-Swap any two `.with` lines? **Compile error.** Each slot expects a specific type.
-
-### `.then { }` — Phase Barrier
-
-Everything above must complete before `.then` executes. Creates a synchronization point:
-
-```kotlin
-data class R3(val a: String, val b: String, val c: String)
-
 val result = Async {
-    kap(::R3)
-        .with { fetchA() }             // ┐ parallel
-        .with { fetchB() }             // ┘
-        .then { validate() }           // waits for A and B, then runs
-}
-```
-
-### `.andThen { ctx -> }` — Value-Dependent Sequencing
-
-When the next phase **needs** the previous result:
-
-```kotlin
-data class UserContext(val profile: String, val prefs: String, val tier: String)
-data class PersonalizedDashboard(val recs: String, val promos: String, val trending: String)
-
-val dashboard = Async {
-    kap(::UserContext)
-        .with { fetchProfile(userId) }       // ┐ phase 1: parallel
-        .with { fetchPreferences(userId) }   // │
-        .with { fetchLoyaltyTier(userId) }   // ┘
-        .andThen { ctx ->                    // ── barrier: ctx available
-            kap(::PersonalizedDashboard)
-                .with { fetchRecommendations(ctx.profile) }   // ┐ phase 2
-                .with { fetchPromotions(ctx.tier) }           // │
-                .with { fetchTrending(ctx.prefs) }            // ┘
-        }
+    kap(::Page)
+        .with { fetchContent() }           // parallel
+        .with { fetchSidebar() }           // parallel
+        .thenValue { computeTimestamp() }  // sequential fill, no barrier
 }
 ```
 
@@ -77,39 +163,10 @@ val dashboard = Async {
 
 ```kotlin
 val effect: Kap<String> = Kap { fetchUser() }  // nothing runs yet
-val result: String = Async { effect }            // runs now
-```
-
-### `Kap.of(value)` — Pure value
-
-```kotlin
-val pure: Kap<Int> = Kap.of(42)
-val result = Async { pure } // 42, no computation
-```
-
-### `Kap.failed(error)` — Wrap a failure
-
-```kotlin
-val failed: Kap<String> = Kap.failed(RuntimeException("boom"))
-// Async { failed } throws RuntimeException
-```
-
-### `Kap.defer { }` — Lazy construction
-
-```kotlin
-val lazy: Kap<String> = Kap.defer { Kap { expensiveSetup(); fetchData() } }
+val result: String = Async { effect }            // NOW it runs
 ```
 
 ### `kap(f)` — Curry a function for `.with` chains
-
-```kotlin
-// ::CheckoutResult has type (User, Cart, ...) -> CheckoutResult
-// kap curries it so each .with provides the next argument
-val chain = kap(::CheckoutResult)
-    .with { fetchUser() }
-    .with { fetchCart() }
-    // ...
-```
 
 Works with constructor refs, function refs, and lambdas:
 
@@ -126,142 +183,95 @@ fun buildSummary(name: String, items: Int): String = "$name has $items items"
 val g3 = Async { kap(::buildSummary).with { fetchName() }.with { 5 } }
 ```
 
----
-
-## Styles
-
-### `combine` — Lifting with suspend lambdas
+### `Kap.of(value)` / `Kap.empty()` / `Kap.failed(error)` / `Kap.defer { }`
 
 ```kotlin
-val result = Async {
-    combine(
-        { fetchDashUser() },
-        { fetchDashCart() },
-        { fetchDashPromos() },
-    ) { user, cart, promos -> Dashboard(user, cart, promos) }
-}
-```
-
-### `combine` — With pre-built Kaps
-
-```kotlin
-val result = Async {
-    combine(
-        Kap { fetchDashUser() },
-        Kap { fetchDashCart() },
-        Kap { fetchDashPromos() },
-    ) { user, cart, promos -> Dashboard(user, cart, promos) }
-}
-```
-
-### `pair` / `triple`
-
-```kotlin
-val (user, cart) = Async { pair({ fetchDashUser() }, { fetchDashCart() }) }
-```
-
-### `zip` (2-22 args)
-
-```kotlin
-val result = Async {
-    zip(
-        Kap { fetchA() },
-        Kap { fetchB() },
-        Kap { fetchC() },
-    ) { a, b, c -> "$a+$b+$c" }
-}
+val pure: Kap<Int> = Kap.of(42)                              // pure value
+val unit: Kap<Unit> = Kap.empty()                             // Unit computation
+val failed: Kap<String> = Kap.failed(RuntimeException("boom")) // wrapped failure
+val lazy: Kap<String> = Kap.defer { Kap { expensiveSetup() } } // lazy construction
 ```
 
 ---
 
-## Error Handling
+## Styles — `combine` / `pair` / `triple` / `zip`
 
-### `.timeout(duration, default)`
+=== "kap + with (type-safe order)"
 
-```kotlin
-val result = Async {
-    Kap { fetchSlowService() }
-        .timeout(500.milliseconds) { "fallback-value" }
-}
-```
-
-### `.recover { }` / `.recoverWith { }`
-
-```kotlin
-val result = Async {
-    Kap<String> { throw RuntimeException("fail") }
-        .recover { "recovered" }
-}
-// "recovered"
-```
-
-### `.fallback(other)` / `.orElse(other)`
-
-```kotlin
-val result = Async {
-    Kap<String> { throw RuntimeException("fail-1") }
-        .orElse(Kap { "fallback-ok" })
-}
-// "fallback-ok"
-```
-
-### `firstSuccessOf`
-
-Tries computations in order, returns the first success:
-
-```kotlin
-val result = Async {
-    firstSuccessOf(
-        Kap { throw RuntimeException("fail-1") },
-        Kap { throw RuntimeException("fail-2") },
-        Kap { "third-wins" },
-    )
-}
-// "third-wins"
-```
-
-### `.retry(maxAttempts, delay, backoff)`
-
-Simple retry (for composable Schedule-based retry, see kap-resilience):
-
-```kotlin
-val result = Async {
-    Kap { flakyService() }
-        .retry(3, delay = 10.milliseconds)
-}
-```
-
-### `.ensure(error) { predicate }`
-
-```kotlin
-val result = Async {
-    Kap { fetchAge() }
-        .ensure(IllegalArgumentException("Must be 18+")) { it >= 18 }
-}
-```
-
----
-
-## Partial Failure
-
-### `.settled()` — Wrap in Result, no sibling cancellation
-
-Your dashboard has three data sources. If the user service fails, you still want cart and config:
-
-```kotlin
-data class PartialDashboard(val user: String, val cart: String, val config: String)
-
-val dashboard = Async {
-    kap { user: Result<String>, cart: String, config: String ->
-        PartialDashboard(user.getOrDefault("anonymous"), cart, config)
+    ```kotlin
+    val result = Async {
+        kap(::Dashboard)
+            .with { fetchUser() }
+            .with { fetchCart() }
+            .with { fetchPromos() }
     }
-        .with(Kap { fetchUserMayFail() }.settled())   // wrapped in Result
-        .with { fetchCartAlways() }
-        .with { fetchConfigAlways() }
-}
-// fetchUser fails? Dashboard still builds with "anonymous".
-// fetchCart fails? Everything cancels (it's not settled).
-```
+    ```
+
+=== "combine (suspend lambdas)"
+
+    ```kotlin
+    val result = Async {
+        combine(
+            { fetchUser() },
+            { fetchCart() },
+            { fetchPromos() },
+        ) { user, cart, promos -> Dashboard(user, cart, promos) }
+    }
+    ```
+
+=== "zip (pre-built Kaps)"
+
+    ```kotlin
+    val result = Async {
+        zip(
+            Kap { fetchUser() },
+            Kap { fetchCart() },
+            Kap { fetchPromos() },
+        ) { user, cart, promos -> Dashboard(user, cart, promos) }
+    }
+    ```
+
+=== "pair / triple"
+
+    ```kotlin
+    val (user, cart) = Async { pair({ fetchUser() }, { fetchCart() }) }
+    val (a, b, c) = Async { triple({ fetchA() }, { fetchB() }, { fetchC() }) }
+    ```
+
+`zip` and `combine` support arities 2-22.
+
+---
+
+## Partial Failure — `.settled()`
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    // supervisorScope is manual and error-prone
+    val result = supervisorScope {
+        val dUser = async { fetchUserMayFail() }
+        val dCart = async { fetchCartAlways() }
+        val dConfig = async { fetchConfigAlways() }
+        val user = try { dUser.await() } catch (e: Exception) { "anonymous" }
+        val cart = dCart.await()
+        val config = dConfig.await()
+        PartialDashboard(user, cart, config)
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val dashboard = Async {
+        kap { user: Result<String>, cart: String, config: String ->
+            PartialDashboard(user.getOrDefault("anonymous"), cart, config)
+        }
+            .with(Kap { fetchUserMayFail() }.settled())   // wrapped in Result
+            .with { fetchCartAlways() }
+            .with { fetchConfigAlways() }
+    }
+    // fetchUser fails? Dashboard still builds with "anonymous".
+    ```
 
 ### `traverseSettled` — Collect ALL results, no cancellation
 
@@ -282,42 +292,83 @@ val results: List<Result<String>> = Async {
 
 ## Memoization
 
-### `.memoize()` — Cache result (success or failure)
+=== "Raw Coroutines"
 
-```kotlin
-val fetchOnce = Kap { expensiveCall() }.memoize()
-val a = Async { fetchOnce } // runs the actual call
-val b = Async { fetchOnce } // cached, instant
-```
+    ```kotlin
+    // Manual Mutex + double-checked locking
+    private val mutex = Mutex()
+    private var cached: String? = null
 
-### `.memoizeOnSuccess()` — Cache only successes
+    suspend fun fetchOnce(): String {
+        cached?.let { return it }
+        return mutex.withLock {
+            cached?.let { return it }
+            val result = expensiveCall()
+            cached = result
+            result
+        }
+    }
+    // Caches failures too. Transient error? Cached forever.
+    ```
 
-```kotlin
-var callCount = 0
-val fetchOnce = Kap { callCount++; delay(30); "expensive-result" }.memoizeOnSuccess()
+=== "KAP — `.memoize()`"
 
-val a = Async { fetchOnce }  // runs, callCount=1
-val b = Async { fetchOnce }  // cached, callCount still 1
-// If first call FAILS? Not cached. Next call retries.
-```
+    ```kotlin
+    val fetchOnce = Kap { expensiveCall() }.memoize()
+    val a = Async { fetchOnce } // runs the actual call
+    val b = Async { fetchOnce } // cached, instant
+    ```
+
+=== "KAP — `.memoizeOnSuccess()`"
+
+    ```kotlin
+    var callCount = 0
+    val fetchOnce = Kap { callCount++; "expensive-result" }.memoizeOnSuccess()
+
+    val a = Async { fetchOnce }  // runs, callCount=1
+    val b = Async { fetchOnce }  // cached, callCount still 1
+    // If first call FAILS? Not cached. Next call retries.
+    ```
 
 ---
 
-## Collections
+## Bounded Parallel Traversal — `traverse`
 
-### `traverse(f)` / `traverse(concurrency, f)`
+=== "Raw Coroutines"
 
-200 user IDs, downstream handles 10 concurrent requests max:
-
-```kotlin
-val results = Async {
-    userIds.traverse(concurrency = 10) { id ->
-        Kap { fetchUser(id) }
+    ```kotlin
+    // Manual Semaphore management
+    val semaphore = Semaphore(10)
+    val results = coroutineScope {
+        userIds.map { id ->
+            async {
+                semaphore.withPermit {
+                    fetchUser(id)
+                }
+            }
+        }.awaitAll()
     }
-}
-```
+    ```
 
-### `traverseDiscard(f)` — Fire-and-forget parallel
+=== "Arrow"
+
+    ```kotlin
+    val results = userIds.parMap(concurrency = 10) { id ->
+        fetchUser(id)
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val results = Async {
+        userIds.traverse(concurrency = 10) { id ->
+            Kap { fetchUser(id) }
+        }
+    }
+    ```
+
+### `traverseDiscard` — Fire-and-forget
 
 ```kotlin
 Async {
@@ -327,7 +378,7 @@ Async {
 }
 ```
 
-### `sequence()` / `sequence(concurrency)`
+### `sequence` / `sequence(concurrency)`
 
 ```kotlin
 val kaps: List<Kap<String>> = userIds.map { id -> Kap { fetchUser(id) } }
@@ -338,29 +389,53 @@ val results: List<String> = Async { kaps.sequence(concurrency = 10) }
 
 ## Racing
 
-### `race(fa, fb)` — First to succeed wins
+=== "Raw Coroutines"
+
+    ```kotlin
+    // Complex select expression
+    val result = coroutineScope {
+        select {
+            async { fetchFromRegionUS() }.onAwait { it }
+            async { fetchFromRegionEU() }.onAwait { it }
+            async { fetchFromRegionAP() }.onAwait { it }
+        }
+        // Problem: losing coroutines not cancelled automatically
+    }
+    ```
+
+=== "Arrow"
+
+    ```kotlin
+    val result = raceN(
+        { fetchFromRegionUS() },
+        { fetchFromRegionEU() },
+        { fetchFromRegionAP() },
+    )
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val fastest = Async {
+        raceN(
+            Kap { fetchFromRegionUS() },   // 100ms
+            Kap { fetchFromRegionEU() },   // 30ms
+            Kap { fetchFromRegionAP() },   // 60ms
+        )
+    }
+    // Returns EU at 30ms. US and AP cancelled automatically.
+    ```
+
+### `race(fa, fb)` — Two-way race
 
 ```kotlin
-val fastest = Async {
+val winner = Async {
     race(
         Kap { delay(100); "slow" },
         Kap { delay(30); "fast" },
     )
 }
-// "fast" at 30ms. Slow cancelled.
-```
-
-### `raceN(c1, c2, ..., cN)` — N-way race
-
-```kotlin
-val fastest = Async {
-    raceN(
-        Kap { fetchFromRegionUS() },   // 100ms
-        Kap { fetchFromRegionEU() },   // 30ms
-        Kap { fetchFromRegionAP() },   // 60ms
-    )
-}
-// Returns EU at 30ms. US and AP cancelled.
+// "fast" at 30ms
 ```
 
 ### `raceAll(list)` — Race a dynamic list
@@ -372,23 +447,149 @@ val fastest = Async { raceAll(replicas) }
 
 ---
 
+## Error Handling
+
+### `.timeout(duration, default)`
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    val result = withTimeoutOrNull(500) { fetchSlowService() } ?: "fallback-value"
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        Kap { fetchSlowService() }
+            .timeout(500.milliseconds) { "fallback-value" }
+    }
+    ```
+
+### `.recover { }` / `.recoverWith { }`
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    val result = try {
+        fetchUser()
+    } catch (e: Exception) {
+        "recovered"
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        Kap<String> { throw RuntimeException("fail") }
+            .recover { "recovered" }
+    }
+    ```
+
+### `.orElse(other)` / `firstSuccessOf`
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    val result = try {
+        source1()
+    } catch (e: Exception) {
+        try {
+            source2()
+        } catch (e: Exception) {
+            source3()  // nested try/catch hell
+        }
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        firstSuccessOf(
+            Kap { source1() },  // fails
+            Kap { source2() },  // fails
+            Kap { source3() },  // wins
+        )
+    }
+
+    // Or: chained fallback
+    val result2 = Async {
+        Kap<String> { throw RuntimeException("fail") }
+            .orElse(Kap { "fallback-ok" })
+    }
+    ```
+
+### `.retry(maxAttempts, delay, backoff)`
+
+Simple retry (for composable Schedule-based retry, see [kap-resilience](kap-resilience.md)):
+
+```kotlin
+val result = Async {
+    Kap { flakyService() }
+        .retry(3, delay = 10.milliseconds)
+}
+```
+
+### `.ensure(error) { predicate }` / `.ensureNotNull(error) { extract }`
+
+```kotlin
+val result = Async {
+    Kap { fetchAge() }
+        .ensure(IllegalArgumentException("Must be 18+")) { it >= 18 }
+}
+
+val result2 = Async {
+    Kap { fetchUserOrNull() }
+        .ensureNotNull(NoSuchElementException("User not found")) { it }
+}
+```
+
+### `catching { }` — Exception-safe Result
+
+```kotlin
+val result: Result<String> = catching { riskyOperation() }
+// Result.success("value") or Result.failure(exception)
+```
+
+---
+
 ## Flow Integration
 
-### `Flow.mapEffect(concurrency) { }`
+=== "Raw Coroutines"
+
+    ```kotlin
+    // Manual concurrency in Flow
+    userIdFlow
+        .flatMapMerge(concurrency = 5) { id ->
+            flow { emit(fetchUser(id)) }
+        }
+        .collect { user -> process(user) }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    // Parallel Flow processing
+    userIdFlow
+        .mapEffect(concurrency = 5) { id -> Kap { fetchUser(id) } }
+        .collect { user -> process(user) }
+    ```
+
+### `Flow.mapEffectOrdered` — Preserve upstream order
 
 ```kotlin
 val results: Flow<String> = userIdFlow
-    .mapEffect(concurrency = 5) { id -> Kap { fetchUser(id) } }
+    .mapEffectOrdered(concurrency = 5) { id -> Kap { fetchUser(id) } }
+// Results arrive in the same order as the input Flow
 ```
-
-### `Flow.mapEffectOrdered(concurrency) { }`
-
-Same as `mapEffect` but preserves upstream emission order.
 
 ### `Flow.firstAsKap()`
 
 ```kotlin
 val first: Kap<String> = userIdFlow.firstAsKap()
+val result = Async { first }
 ```
 
 ---
@@ -400,40 +601,97 @@ val first: Kap<String> = userIdFlow.firstAsKap()
 ```kotlin
 val deferred: Deferred<String> = scope.async { fetchUser() }
 val kap: Kap<String> = deferred.toKap()
+val result = Async { kap }
 ```
 
-### `computation { }` — Imperative builder with `.bind()`
+### `(suspend () -> A).toKap()`
+
+```kotlin
+val lambda: suspend () -> String = { fetchUser() }
+val kap: Kap<String> = lambda.toKap()
+```
+
+### `computation { }` — Imperative builder
+
+=== "Raw Coroutines"
+
+    ```kotlin
+    val result = coroutineScope {
+        val user = fetchDashUser()     // sequential
+        val cart = fetchDashCart()      // sequential, could be parallel
+        "$user has $cart"
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        computation {
+            val user = Kap { fetchDashUser() }.bind()
+            val cart = Kap { fetchDashCart() }.bind()
+            "$user has $cart"
+        }
+    }
+    ```
+
+---
+
+## Utilities
+
+### `.keepFirst` / `.keepSecond`
+
+Run both in parallel, keep only one result:
+
+```kotlin
+val user = Async {
+    Kap { fetchUser() }
+        .keepFirst(Kap { logAccess() })  // both run, only user returned
+}
+```
+
+### `.discard()` / `.peek { }`
+
+```kotlin
+val unit = Async {
+    Kap { fetchUser() }.discard()  // runs but returns Unit
+}
+
+val user = Async {
+    Kap { fetchUser() }
+        .peek { println("Fetched: $it") }  // side-effect, returns original value
+}
+```
+
+### `.on(context)` / `.named(name)`
 
 ```kotlin
 val result = Async {
-    computation {
-        val user = Kap { fetchDashUser() }.bind()
-        val cart = Kap { fetchDashCart() }.bind()
-        "$user has $cart"
-    }
+    Kap { readFile() }
+        .on(Dispatchers.IO)          // switch dispatcher
+        .named("file-read")          // coroutine name for debugging
 }
-// "Alice has 3 items"
+```
+
+### `.await()` — Execute from any suspend context
+
+```kotlin
+suspend fun myFunction(): String {
+    return Kap { fetchUser() }.await()  // no need for Async { }
+}
+```
+
+### `delayed(duration, value)` / `withOrNull`
+
+```kotlin
+val result = Async { delayed(100.milliseconds, "delayed-value") }
+
+val maybeResult: String? = withOrNull { Kap { riskyOperation() } }
 ```
 
 ---
 
-## Transforms & Utilities
-
-| Combinator | What it does |
-|---|---|
-| `.map { }` | Transform the result |
-| `.discard()` | Run but discard result (returns `Unit`) |
-| `.peek { }` | Side-effect without changing result |
-| `.on(Dispatchers.IO)` | Switch dispatcher for this computation |
-| `.named("fetch-user")` | Set coroutine name for debugging |
-| `.keepFirst` / `.keepSecond` | Parallel, keep one result |
-| `.await()` | Execute from any suspend context |
-
----
-
-## Observability
-
-Bring your own logger — no framework coupled:
+## Observability — `traced(name, tracer)`
 
 ```kotlin
 val tracer = KapTracer { event ->
@@ -455,7 +713,7 @@ val result = Async {
 
 ## Execution Model
 
-`Kap<A>` is lazy — nothing runs until `Async { }`:
+`Kap<A>` is **lazy** — nothing runs until `Async { }`:
 
 ```kotlin
 val plan: Kap<Dashboard> = kap(::Dashboard)
@@ -464,14 +722,15 @@ val plan: Kap<Dashboard> = kap(::Dashboard)
     .with { fetchDashPromos() }
 
 println("Plan built. Nothing has executed yet.")
+println("plan is: ${plan::class.simpleName}")
 
 val result: Dashboard = Async { plan }  // NOW it runs
 ```
 
 **Key guarantees:**
 
-- **Structured concurrency**: All parallel branches run inside `coroutineScope`. If one fails, siblings cancel.
+- **Structured concurrency**: All parallel branches run inside `coroutineScope`. One fails → siblings cancel.
 - **Cancellation safety**: `CancellationException` is never caught. All combinators re-throw it.
 - **Context propagation**: `Async(MDCContext()) { ... }` propagates context to all branches.
 - **No reflection**: All type safety is compile-time. Zero runtime overhead.
-- **Algebraic laws**: `Kap` satisfies Functor, Applicative, and Monad laws — property-tested via Kotest. See [LAWS.md](https://github.com/damian-rafael-lattenero/kap/blob/master/LAWS.md).
+- **Algebraic laws**: Functor, Applicative, Monad — property-tested via Kotest. See [LAWS.md](https://github.com/damian-rafael-lattenero/kap/blob/master/LAWS.md).
