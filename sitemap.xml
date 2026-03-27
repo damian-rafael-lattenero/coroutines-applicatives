@@ -21,6 +21,10 @@
          <lastmod>2026-03-27</lastmod>
     </url>
     <url>
+         <loc>https://damian-rafael-lattenero.github.io/kap/blog/2026/03/27/solving-the-same-type-parameter-problem-with-ksp/</loc>
+         <lastmod>2026-03-27</lastmod>
+    </url>
+    <url>
          <loc>https://damian-rafael-lattenero.github.io/kap/guide/core-concepts/</loc>
          <lastmod>2026-03-27</lastmod>
     </url>
@@ -86,6 +90,14 @@
     </url>
     <url>
          <loc>https://damian-rafael-lattenero.github.io/kap/blog/category/open-source/</loc>
+         <lastmod>2026-03-27</lastmod>
+    </url>
+    <url>
+         <loc>https://damian-rafael-lattenero.github.io/kap/blog/category/ksp/</loc>
+         <lastmod>2026-03-27</lastmod>
+    </url>
+    <url>
+         <loc>https://damian-rafael-lattenero.github.io/kap/blog/category/type-safety/</loc>
          <lastmod>2026-03-27</lastmod>
     </url>
 </urlset>
