@@ -24,6 +24,6 @@ package kap
  *     .with { UserAge(25) }
  * ```
  */
-@Target(AnnotationTarget.CLASS)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
 annotation class KapTypeSafe

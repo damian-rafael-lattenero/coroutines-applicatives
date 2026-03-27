@@ -19,37 +19,114 @@ class KapTypeSafeProcessor(
                 unprocessed.add(symbol)
                 return@forEach
             }
-            if (symbol is KSClassDeclaration && symbol.classKind == ClassKind.CLASS) {
-                generateTypeSafeWrappers(symbol)
-            } else {
-                logger.error("@KapTypeSafe can only be applied to data classes", symbol)
+            when (symbol) {
+                is KSClassDeclaration -> {
+                    if (symbol.classKind == ClassKind.CLASS) {
+                        generateForClass(symbol)
+                    } else {
+                        logger.error("@KapTypeSafe can only be applied to classes or functions", symbol)
+                    }
+                }
+                is KSFunctionDeclaration -> generateForFunction(symbol)
+                else -> logger.error("@KapTypeSafe can only be applied to classes or functions", symbol)
             }
         }
 
         return unprocessed
     }
 
-    private fun generateTypeSafeWrappers(classDecl: KSClassDeclaration) {
+    private data class ParamInfo(
+        val name: String,
+        val qualifiedType: String,
+    )
+
+    private fun generateForClass(classDecl: KSClassDeclaration) {
         val className = classDecl.simpleName.asString()
         val packageName = classDecl.packageName.asString()
         val constructor = classDecl.primaryConstructor ?: run {
             logger.error("@KapTypeSafe requires a primary constructor", classDecl)
             return
         }
-        val params = constructor.parameters
+
+        val params = constructor.parameters.map { param ->
+            ParamInfo(
+                name = param.name!!.asString(),
+                qualifiedType = param.type.resolve().declaration.qualifiedName?.asString()
+                    ?: param.type.resolve().toString(),
+            )
+        }
 
         if (params.isEmpty()) {
-            logger.error("@KapTypeSafe requires at least one constructor parameter", classDecl)
+            logger.error("@KapTypeSafe requires at least one parameter", classDecl)
             return
         }
 
-        val qualifiedClassName = if (packageName.isEmpty()) className else "$packageName.$className"
+        val returnType = if (packageName.isEmpty()) className else "$packageName.$className"
+
+        generate(
+            containingFile = classDecl.containingFile!!,
+            packageName = packageName,
+            baseName = className,
+            safeFunctionName = "kapSafe",
+            params = params,
+            returnType = returnType,
+            isSuspend = false,
+        )
+    }
+
+    private fun generateForFunction(funcDecl: KSFunctionDeclaration) {
+        val funcName = funcDecl.simpleName.asString()
+        val packageName = funcDecl.packageName.asString()
+
+        val params = funcDecl.parameters.map { param ->
+            ParamInfo(
+                name = param.name!!.asString(),
+                qualifiedType = param.type.resolve().declaration.qualifiedName?.asString()
+                    ?: param.type.resolve().toString(),
+            )
+        }
+
+        if (params.isEmpty()) {
+            logger.error("@KapTypeSafe requires at least one parameter", funcDecl)
+            return
+        }
+
+        val returnTypeRef = funcDecl.returnType?.resolve()
+        val returnType = returnTypeRef?.declaration?.qualifiedName?.asString()
+            ?: returnTypeRef?.toString()
+            ?: "kotlin.Unit"
+
+        val isSuspend = funcDecl.modifiers.contains(Modifier.SUSPEND)
+        val baseName = funcName.replaceFirstChar { it.uppercase() }
+
+        generate(
+            containingFile = funcDecl.containingFile!!,
+            packageName = packageName,
+            baseName = baseName,
+            safeFunctionName = "kapSafe${baseName}",
+            params = params,
+            returnType = returnType,
+            isSuspend = isSuspend,
+            originalFunctionName = funcName,
+        )
+    }
+
+    private fun generate(
+        containingFile: KSFile,
+        packageName: String,
+        baseName: String,
+        safeFunctionName: String,
+        params: List<ParamInfo>,
+        returnType: String,
+        isSuspend: Boolean,
+        originalFunctionName: String? = null,
+    ) {
         val hasPackage = packageName.isNotEmpty()
 
         val file = codeGenerator.createNewFile(
-            Dependencies(true, classDecl.containingFile!!),
+            Dependencies(true, containingFile),
             packageName,
-            "${className}KapTypeSafe"
+            "${baseName}KapTypeSafe"
         )
 
         OutputStreamWriter(file).use { writer ->
@@ -61,43 +138,33 @@ class KapTypeSafeProcessor(
             writer.write("import kap.of\n\n")
 
             // Generate value class wrappers
-            params.forEach { param ->
-                val paramName = param.name!!.asString()
-                val wrapperName = "$className${paramName.replaceFirstChar { it.uppercase() }}"
-                val typeName = param.type.resolve().declaration.qualifiedName?.asString()
-                    ?: param.type.resolve().toString()
-
+            val wrapperNames = params.map { param ->
+                val wrapperName = "$baseName${param.name.replaceFirstChar { it.uppercase() }}"
                 writer.write("@JvmInline\n")
-                writer.write("value class $wrapperName(val value: $typeName)\n\n")
+                writer.write("value class $wrapperName(val value: ${param.qualifiedType})\n\n")
+                wrapperName
             }
 
-            // Generate kapSafe function
-            val originalTypes = params.joinToString(", ") { param ->
-                param.type.resolve().declaration.qualifiedName?.asString()
-                    ?: param.type.resolve().toString()
-            }
+            // Build types
+            val originalTypes = params.joinToString(", ") { it.qualifiedType }
+            val suspendPrefix = if (isSuspend) "suspend " else ""
+            val curriedType = wrapperNames.joinToString(" -> ") { "($it)" } + " -> $returnType"
 
-            val wrapperTypes = params.map { param ->
-                val paramName = param.name!!.asString()
-                "$className${paramName.replaceFirstChar { it.uppercase() }}"
-            }
-
-            // Build curried return type: (W1) -> (W2) -> ... -> R
-            val curriedType = wrapperTypes.joinToString(" -> ") { "($it)" } + " -> $qualifiedClassName"
-
+            // Doc comment
+            val target = originalFunctionName ?: baseName
             writer.write("/**\n")
-            writer.write(" * Type-safe variant of `kap(::$className)` where each parameter\n")
+            writer.write(" * Type-safe variant of `kap(::$target)` where each parameter\n")
             writer.write(" * has a distinct wrapper type — swapping same-typed parameters\n")
             writer.write(" * causes a compile error.\n")
             writer.write(" */\n")
-            writer.write("fun kapSafe(f: ($originalTypes) -> $qualifiedClassName): Kap<$curriedType> =\n")
+
+            // Function signature
+            writer.write("fun $safeFunctionName(f: $suspendPrefix($originalTypes) -> $returnType): Kap<$curriedType> =\n")
             writer.write("    Kap.of(")
 
-            // Build nested lambda: { a: W1 -> { b: W2 -> ... f(a.value, b.value, ...) }}
-            val paramNames = params.mapIndexed { i, _ -> "p$i" }
-            val wrapperParams = wrapperTypes.zip(paramNames)
-
-            wrapperParams.forEach { (wrapper, name) ->
+            // Build nested lambda
+            val paramNames = params.indices.map { "p$it" }
+            paramNames.zip(wrapperNames).forEach { (name, wrapper) ->
                 writer.write("{ $name: $wrapper -> ")
             }
             val callArgs = paramNames.joinToString(", ") { "$it.value" }
