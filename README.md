@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/logo.svg" alt="KAP Logo" width="200"/>
+  <img src=".github/logo.svg?v=2" alt="KAP Logo" width="200"/>
 </p>
 
 <h1 align="center">KAP — Kotlin Async Parallelism</h1>
