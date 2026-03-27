@@ -154,8 +154,7 @@ class KapTypeSafeProcessor(
             // Wrapper name always uses baseName (class/function) for uniqueness
             val wrapperNames = params.map { param ->
                 val wrapperName = "$baseName${param.name.replaceFirstChar { it.uppercase() }}"
-                writer.write("@JvmInline\n")
-                writer.write("value class $wrapperName(val value: ${param.qualifiedType})\n\n")
+                writer.write("data class $wrapperName(val value: ${param.qualifiedType})\n\n")
                 wrapperName
             }
 
