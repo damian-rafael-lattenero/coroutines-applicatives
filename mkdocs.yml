@@ -1,0 +1,85 @@
+site_name: KAP — Kotlin Async Parallelism
+site_url: https://damian-rafael-lattenero.github.io/kap/
+site_description: Type-safe multi-service orchestration for Kotlin coroutines
+site_author: Damian Rafael Lattenero
+repo_url: https://github.com/damian-rafael-lattenero/kap
+repo_name: damian-rafael-lattenero/kap
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quickstart: guide/quickstart.md
+    - Core Concepts: guide/core-concepts.md
+  - Guides:
+    - Parallel API Aggregation: guide/parallel-aggregation.md
+    - Validated Forms: guide/validated-forms.md
+    - Resilient Services: guide/resilient-services.md
+  - Modules:
+    - kap-core: modules/kap-core.md
+    - kap-resilience: modules/kap-resilience.md
+    - kap-arrow: modules/kap-arrow.md
+  - Comparison: comparison.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/damian-rafael-lattenero/kap
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
