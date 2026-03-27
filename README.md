@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="https://damian-rafael-lattenero.github.io/kap/"><strong>Documentation</strong></a> · <a href="https://damian-rafael-lattenero.github.io/kap/guide/quickstart/"><strong>Quickstart</strong></a> · <a href="https://damian-rafael-lattenero.github.io/kap/comparison/"><strong>Comparison</strong></a> · <a href="https://damian-rafael-lattenero.github.io/kap/benchmarks/"><strong>Benchmarks</strong></a>
+  <a href="https://damian-rafael-lattenero.github.io/kap/guide/quickstart/" style="font-size:1.3em"><strong>🚀 Quick Start</strong></a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://damian-rafael-lattenero.github.io/kap/" style="font-size:1.3em"><strong>📖 Documentation</strong></a>
 </p>
 
 ---
