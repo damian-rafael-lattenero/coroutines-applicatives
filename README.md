@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/damian-rafael-lattenero/kap/master/.github/logo.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/damian-rafael-lattenero/kap/master/.github/logo.svg">
-    <img src="https://raw.githubusercontent.com/damian-rafael-lattenero/kap/master/.github/logo.svg" alt="KAP Logo" width="300">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/damian-rafael-lattenero/kap/master/.github/logo.svg?v=4">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/damian-rafael-lattenero/kap/master/.github/logo.svg?v=4">
+    <img src="https://raw.githubusercontent.com/damian-rafael-lattenero/kap/master/.github/logo.svg?v=4" alt="KAP Logo" width="300">
   </picture>
 </p>
 
