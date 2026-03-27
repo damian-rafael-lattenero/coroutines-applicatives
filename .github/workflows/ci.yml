@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: gradle/actions/wrapper-validation@v5
+      - uses: gradle/actions/wrapper-validation@v6
 
   # ── Unit & comparison tests (parallel matrix) ───────────────────────────
   test:
@@ -53,7 +53,7 @@ jobs:
         with:
           distribution: corretto
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
       - name: Run tests
@@ -80,7 +80,7 @@ jobs:
         with:
           distribution: corretto
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
       - name: Compile ${{ matrix.target }}
@@ -97,7 +97,7 @@ jobs:
         with:
           distribution: corretto
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
       - name: Regenerate all codegen
@@ -129,7 +129,7 @@ jobs:
         with:
           distribution: corretto
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Run examples
         run: |
@@ -165,7 +165,7 @@ jobs:
         with:
           distribution: corretto
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
 
@@ -209,7 +209,7 @@ jobs:
         with:
           distribution: corretto
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
 
