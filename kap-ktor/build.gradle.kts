@@ -39,6 +39,8 @@ tasks.test {
 }
 
 mavenPublishing {
+    publishToMavenCentral()
+    if (!project.hasProperty("skipSigning")) signAllPublications()
     coordinates(group.toString(), "kap-ktor", version.toString())
 
     pom {
@@ -61,6 +63,8 @@ mavenPublishing {
         }
         scm {
             url.set("https://github.com/damian-rafael-lattenero/kap")
+            connection.set("scm:git:git://github.com/damian-rafael-lattenero/kap.git")
+            developerConnection.set("scm:git:ssh://git@github.com/damian-rafael-lattenero/kap.git")
         }
     }
 }
