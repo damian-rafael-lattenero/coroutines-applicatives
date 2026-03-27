@@ -14,25 +14,61 @@ implementation("io.github.damian-rafael-lattenero:kap-resilience:2.3.0")
 
 ## Schedule — Composable Retry Policies
 
-Build complex retry strategies from simple building blocks. Combine with `and` (both must agree) or `or` (either continues):
+=== "Raw Coroutines (~20 lines)"
 
-```kotlin
-val policy = Schedule.times<Throwable>(5) and
-    Schedule.exponential(10.milliseconds) and
-    Schedule.doWhile<Throwable> { it is RuntimeException }
+    ```kotlin
+    suspend fun <T> retryWithBackoff(
+        maxAttempts: Int,
+        initialDelay: Long,
+        maxDelay: Long,
+        factor: Double,
+        block: suspend () -> T
+    ): T {
+        var currentDelay = initialDelay
+        repeat(maxAttempts - 1) { attempt ->
+            try {
+                return block()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (e !is RuntimeException) throw e  // only retry RuntimeException?
+            }
+            delay(currentDelay)
+            currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
+        }
+        return block() // last attempt, let it throw
+    }
 
-var attempts = 0
-suspend fun flakyService(): String {
-    attempts++
-    if (attempts <= 2) throw RuntimeException("flake #$attempts")
-    return "success on attempt $attempts"
-}
+    val result = retryWithBackoff(5, 10, 5000, 2.0) { flakyService() }
+    // Want jitter? Rewrite. Want max duration? Rewrite. Want to compose two policies? Rewrite.
+    ```
 
-val result = Async {
-    Kap { flakyService() }.retry(policy)
-}
-// "success on attempt 3"
-```
+=== "Arrow"
+
+    ```kotlin
+    val result = Schedule.recurs<Throwable>(5)
+        .and(Schedule.exponential(10.milliseconds))
+        .retry { flakyService() }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val policy = Schedule.times<Throwable>(5) and
+        Schedule.exponential(10.milliseconds) and
+        Schedule.doWhile<Throwable> { it is RuntimeException }
+
+    var attempts = 0
+    suspend fun flakyService(): String {
+        attempts++
+        if (attempts <= 2) throw RuntimeException("flake #$attempts")
+        return "success on attempt $attempts"
+    }
+
+    val result = Async {
+        Kap { flakyService() }.retry(policy)
+    }
+    // "success on attempt 3"
+    ```
 
 ### Building Blocks
 
@@ -47,12 +83,35 @@ val result = Async {
 
 ### Modifiers
 
-| Modifier | Behavior |
-|---|---|
-| `.jittered()` | Add random jitter to prevent thundering herd |
-| `.withMaxDuration(d)` | Stop after total elapsed time |
-| `.doWhile { }` | Continue while predicate holds |
-| `.doUntil { }` | Continue until predicate holds |
+#### `.jittered()` — Prevent thundering herd
+
+```kotlin
+// Without jitter: 100 clients all retry at exactly 1s, 2s, 4s — thundering herd
+// With jitter: each client retries at a random time within the window
+val policy = Schedule.times<Throwable>(5) and
+    Schedule.exponential(100.milliseconds).jittered()
+```
+
+#### `.withMaxDuration(d)` — Total time cap
+
+```kotlin
+// Retry for at most 30 seconds total, regardless of attempt count
+val policy = Schedule.forever<Throwable>() and
+    Schedule.exponential(100.milliseconds) and
+    Schedule.withMaxDuration(30.seconds)
+```
+
+#### `.doWhile { }` / `.doUntil { }` — Conditional retry
+
+```kotlin
+// Only retry on transient errors
+val policy = Schedule.times<Throwable>(10) and
+    Schedule.doWhile<Throwable> { it is IOException || it is TimeoutException }
+
+// Retry until we get a non-empty response
+val untilReady = Schedule.spaced<String>(1.seconds) and
+    Schedule.doUntil<String> { it.isNotEmpty() }
+```
 
 ### Composition
 
@@ -66,16 +125,6 @@ val lenient = Schedule.times<Throwable>(3) or Schedule.spaced(1.seconds)
 
 ### Retry Variants
 
-#### `.retry(schedule)` — Retry on failure
-
-```kotlin
-val result = Async {
-    Kap { flakyService() }.retry(
-        Schedule.times<Throwable>(3) and Schedule.exponential(50.milliseconds).jittered()
-    )
-}
-```
-
 #### `.retryOrElse(schedule, fallback)` — Fallback after exhaustion
 
 ```kotlin
@@ -87,7 +136,7 @@ val result = Async {
 }
 ```
 
-#### `.retryWithResult(schedule)` — Returns RetryResult
+#### `.retryWithResult(schedule)` — Returns full context
 
 ```kotlin
 val retryResult = Async {
@@ -95,56 +144,122 @@ val retryResult = Async {
         Schedule.times<Throwable>(5) and Schedule.exponential(10.milliseconds)
     )
 }
-// retryResult.value, retryResult.attempts, retryResult.totalDelay
+println(retryResult.value)       // "success"
+println(retryResult.attempts)    // 3
+println(retryResult.totalDelay)  // 70ms
 ```
 
 ---
 
 ## CircuitBreaker
 
-State machine: **Closed** (normal) → **Open** (rejecting after N failures) → **HalfOpen** (testing one request after timeout) → **Closed**.
+=== "Raw Coroutines"
+
+    ```kotlin
+    // Manual state machine — 50+ lines
+    class ManualCircuitBreaker(
+        private val maxFailures: Int,
+        private val resetTimeout: Duration,
+    ) {
+        private val mutex = Mutex()
+        private var failures = 0
+        private var state: State = State.Closed
+        private var lastFailure: Long = 0
+
+        enum class State { Closed, Open, HalfOpen }
+
+        suspend fun <T> execute(block: suspend () -> T): T {
+            mutex.withLock {
+                when (state) {
+                    State.Open -> {
+                        if (System.currentTimeMillis() - lastFailure > resetTimeout.inWholeMilliseconds) {
+                            state = State.HalfOpen
+                        } else {
+                            throw RuntimeException("Circuit breaker is open")
+                        }
+                    }
+                    else -> { }
+                }
+            }
+            return try {
+                val result = block()
+                mutex.withLock { failures = 0; state = State.Closed }
+                result
+            } catch (e: Exception) {
+                mutex.withLock {
+                    failures++
+                    lastFailure = System.currentTimeMillis()
+                    if (failures >= maxFailures) state = State.Open
+                }
+                throw e
+            }
+        }
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val breaker = CircuitBreaker(
+        maxFailures = 5,
+        resetTimeout = 30.seconds,
+        onStateChange = { old, new -> println("CircuitBreaker: $old -> $new") }
+    )
+
+    val result = Async {
+        Kap { fetchUser() }
+            .withCircuitBreaker(breaker)
+    }
+    // While Open: fails immediately with CircuitBreakerOpenException
+    // After resetTimeout: tries one request (HalfOpen)
+    // If it succeeds: back to Closed
+    ```
+
+### Full composition
 
 ```kotlin
-val breaker = CircuitBreaker(
-    maxFailures = 5,
-    resetTimeout = 30.seconds,
-    onStateChange = { old, new -> println("CircuitBreaker: $old -> $new") }
-)
-
 val result = Async {
     Kap { fetchUser() }
-        .timeout(500.milliseconds)
-        .withCircuitBreaker(breaker)
-        .retry(Schedule.times<Throwable>(3) and Schedule.exponential(10.milliseconds))
-        .recover { "cached-user" }
+        .timeout(500.milliseconds)                    // hard timeout
+        .withCircuitBreaker(breaker)                  // circuit breaker
+        .retry(Schedule.times<Throwable>(3)           // retry with backoff
+            and Schedule.exponential(10.milliseconds))
+        .recover { "cached-user" }                    // fallback on exhaustion
 }
 // timeout -> circuit breaker -> retry -> recover. All composable.
 ```
-
-While the breaker is **Open**, calls fail immediately with `CircuitBreakerOpenException` — no network call, no waiting.
 
 ---
 
 ## `timeoutRace` — Parallel Fallback
 
-Standard timeout wastes time: wait the full duration, *then* start the fallback. `timeoutRace` starts **both at t=0**:
+=== "Raw Coroutines"
 
-```kotlin
-suspend fun fetchFromPrimary(): String { delay(200); return "primary-data" }
-suspend fun fetchFromFallback(): String { delay(30); return "fallback-data" }
+    ```kotlin
+    // Sequential: waste time waiting for timeout before starting fallback
+    val result = try {
+        withTimeout(100) { fetchFromPrimary() }
+    } catch (e: TimeoutCancellationException) {
+        fetchFromFallback()  // starts AFTER 100ms timeout
+    }
+    // Total: 100ms (wasted) + fallback time
+    ```
 
-val result = Async {
-    Kap { fetchFromPrimary() }
-        .timeoutRace(100.milliseconds, Kap { fetchFromFallback() })
-}
-// "fallback-data" at ~30ms
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        Kap { fetchFromPrimary() }
+            .timeoutRace(100.milliseconds, Kap { fetchFromFallback() })
+    }
+    // Both start at t=0. Fallback wins at ~30ms. Primary cancelled.
+    ```
+
 ```
-
-```
-Standard timeout:
+Sequential timeout:
 t=0ms    ─── primary starts ───
-t=100ms  ─── primary times out ───
-t=100ms  ─── fallback starts ───     ← wasted 100ms waiting
+t=100ms  ─── timeout fires ───
+t=100ms  ─── fallback starts ───     ← 100ms wasted
 t=130ms  ─── fallback completes ───
 
 timeoutRace:
@@ -159,23 +274,40 @@ t=30ms   ─── fallback wins ───       ← 3x faster
 
 ## `raceQuorum` — N-of-M Successes
 
-3 database replicas. Need 2-of-3 to agree for consistency:
+=== "Raw Coroutines"
 
-```kotlin
-suspend fun fetchReplicaA(): String { delay(50); return "replica-A" }
-suspend fun fetchReplicaB(): String { delay(20); return "replica-B" }
-suspend fun fetchReplicaC(): String { delay(80); return "replica-C" }
+    ```kotlin
+    // Manual select + counting — fragile, hard to get right
+    val results = mutableListOf<String>()
+    val required = 2
+    coroutineScope {
+        val jobs = listOf(
+            async { fetchReplicaA() },
+            async { fetchReplicaB() },
+            async { fetchReplicaC() },
+        )
+        val channel = Channel<String>(3)
+        jobs.forEach { job ->
+            launch { try { channel.send(job.await()) } catch (_: Exception) { } }
+        }
+        repeat(required) { results.add(channel.receive()) }
+        jobs.forEach { it.cancel() }  // cancel the rest
+    }
+    ```
 
-val quorum: List<String> = Async {
-    raceQuorum(
-        required = 2,
-        Kap { fetchReplicaA() },
-        Kap { fetchReplicaB() },
-        Kap { fetchReplicaC() },
-    )
-}
-// [replica-B, replica-A] — the 2 fastest. C cancelled.
-```
+=== "KAP"
+
+    ```kotlin
+    val quorum: List<String> = Async {
+        raceQuorum(
+            required = 2,
+            Kap { fetchReplicaA() },  // 50ms
+            Kap { fetchReplicaB() },  // 20ms
+            Kap { fetchReplicaC() },  // 80ms
+        )
+    }
+    // [replica-B, replica-A] — the 2 fastest. C cancelled.
+    ```
 
 Supports arities 2-22.
 
@@ -185,30 +317,56 @@ Supports arities 2-22.
 
 ### `bracket` — Guaranteed cleanup
 
-Acquire a resource, use it, **guarantee** cleanup even on failure or cancellation:
+=== "Raw Coroutines"
 
-```kotlin
-val result = Async {
-    kap { db: String, cache: String, api: String -> "$db|$cache|$api" }
-        .with(bracket(
-            acquire = { openDbConnection() },
-            use = { conn -> Kap { conn.query("SELECT 1") } },
-            release = { conn -> conn.close() },
-        ))
-        .with(bracket(
-            acquire = { openCacheConnection() },
-            use = { conn -> Kap { conn.get("key") } },
-            release = { conn -> conn.close() },
-        ))
-        .with(bracket(
-            acquire = { openHttpClient() },
-            use = { client -> Kap { client.get("/api") } },
-            release = { client -> client.close() },
-        ))
-}
-// All 3 acquired, used in parallel, ALL released even on failure.
-// Release runs in NonCancellable context — guaranteed.
-```
+    ```kotlin
+    // Nested try/finally — gets ugly fast with multiple resources
+    val db = openDbConnection()
+    try {
+        val cache = openCacheConnection()
+        try {
+            val http = openHttpClient()
+            try {
+                // use all three... but sequentially acquired
+                val dbResult = db.query("SELECT 1")
+                val cacheResult = cache.get("key")
+                val httpResult = http.get("/api")
+                "$dbResult|$cacheResult|$httpResult"
+            } finally {
+                http.close()
+            }
+        } finally {
+            cache.close()
+        }
+    } finally {
+        db.close()
+    }
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val result = Async {
+        kap { db: String, cache: String, api: String -> "$db|$cache|$api" }
+            .with(bracket(
+                acquire = { openDbConnection() },
+                use = { conn -> Kap { conn.query("SELECT 1") } },
+                release = { conn -> conn.close() },
+            ))
+            .with(bracket(
+                acquire = { openCacheConnection() },
+                use = { conn -> Kap { conn.get("key") } },
+                release = { conn -> conn.close() },
+            ))
+            .with(bracket(
+                acquire = { openHttpClient() },
+                use = { client -> Kap { client.get("/api") } },
+                release = { client -> client.close() },
+            ))
+    }
+    // All 3 acquired, used in PARALLEL, ALL released even on failure.
+    // Release runs in NonCancellable context — guaranteed.
+    ```
 
 ### `bracketCase` — Release depends on outcome
 
@@ -219,8 +377,9 @@ val result = Async {
         use = { tx -> Kap { tx.query("INSERT 1") } },
         release = { tx, case ->
             when (case) {
-                is ExitCase.Completed<*> -> tx.commit()
-                else -> tx.rollback()  // failure or cancellation
+                is ExitCase.Completed<*> -> { println("commit"); tx.commit() }
+                is ExitCase.Failed -> { println("rollback"); tx.rollback() }
+                is ExitCase.Cancelled -> { println("rollback (cancelled)"); tx.rollback() }
             }
             tx.close()
         },
@@ -230,44 +389,75 @@ val result = Async {
 
 ### `Resource` — Composable resource
 
-Compose resources first, use later. Cleanup order is guaranteed (reverse of acquisition):
+=== "Raw Coroutines"
 
-```kotlin
-val db = Resource({ openDbConnection() }, { it.close() })
-val cache = Resource({ openCacheConnection() }, { it.close() })
-val http = Resource({ openHttpClient() }, { it.close() })
-
-val infra = Resource.zip(db, cache, http) { d, c, h -> Triple(d, c, h) }
-
-val result = Async {
-    infra.useKap { (db, cache, http) ->
-        kap(::DashboardData)
-            .with { db.query("SELECT 1") }
-            .with { cache.get("user:prefs") }
-            .with { http.get("/recommendations") }
+    ```kotlin
+    // Manual acquisition + cleanup ordering
+    val db = openDbConnection()
+    val cache = openCacheConnection()
+    val http = openHttpClient()
+    try {
+        // use them...
+    } finally {
+        http.close()   // reverse order? you have to remember
+        cache.close()
+        db.close()
     }
-}
-// All 3 acquired, used in parallel, ALL released in reverse order.
-```
+    ```
+
+=== "KAP"
+
+    ```kotlin
+    val db = Resource({ openDbConnection() }, { it.close() })
+    val cache = Resource({ openCacheConnection() }, { it.close() })
+    val http = Resource({ openHttpClient() }, { it.close() })
+
+    val infra = Resource.zip(db, cache, http) { d, c, h -> Triple(d, c, h) }
+
+    val result = Async {
+        infra.useKap { (db, cache, http) ->
+            kap(::DashboardData)
+                .with { db.query("SELECT 1") }
+                .with { cache.get("user:prefs") }
+                .with { http.get("/recommendations") }
+        }
+    }
+    // All acquired, used in parallel, released in reverse order. Guaranteed.
+    ```
 
 `Resource.zip` supports arities 2-22.
 
 ### `guarantee` / `guaranteeCase`
 
 ```kotlin
+// guarantee: finalizer always runs, regardless of success or failure
 val result = Async {
     guarantee(
         fa = { riskyOperation() },
-        finalizer = { cleanup() },  // always runs
+        finalizer = { cleanup() },
+    )
+}
+
+// guaranteeCase: finalizer receives the exit case
+val result2 = Async {
+    guaranteeCase(
+        fa = { riskyOperation() },
+        finalizer = { case ->
+            when (case) {
+                is ExitCase.Completed<*> -> println("success cleanup")
+                is ExitCase.Failed -> println("failure cleanup: ${case.error}")
+                is ExitCase.Cancelled -> println("cancellation cleanup")
+            }
+        },
     )
 }
 ```
 
 ---
 
-## Full Composition
+## Full Production Pipeline
 
-All combinators compose in the chain. Here's a production-grade resilient fetch:
+All features composed in one chain:
 
 ```kotlin
 val breaker = CircuitBreaker(maxFailures = 5, resetTimeout = 30.seconds)
@@ -276,9 +466,10 @@ val result = Async {
     Kap { fetchData() }
         .timeout(2.seconds)                              // hard timeout
         .withCircuitBreaker(breaker)                     // circuit breaker
-        .retry(Schedule.times<Throwable>(3)              // retry with backoff
+        .retry(Schedule.times<Throwable>(3)              // retry with backoff + jitter
             and Schedule.exponential(50.milliseconds)
-            .jittered())
+            .jittered()
+            .withMaxDuration(10.seconds))
         .recover { cachedData() }                        // fallback on exhaustion
 }
 ```
