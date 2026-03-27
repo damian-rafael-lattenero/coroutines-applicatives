@@ -6,7 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-03-27
+
+### Added
+- **`kap-ksp`** — KSP2 processor for compile-time safe same-type parameters
+  - `@KapTypeSafe` annotation generates value class wrappers per parameter
+  - Works on data classes and functions
+  - `prefix` parameter to avoid collisions
+  - `.toParamName()` extension functions for fluent wrapping
+- **`kap-ktor`** — Ktor server integration plugin
+  - `Kap` plugin with circuit breaker registry and shared tracer
+  - `respondAsync` / `respondKap` extensions for routing
+  - `kapExceptionHandlers()` for StatusPages (503, 504, 400)
+  - `ktorTracer()` / `structuredTracer()` for observability
+- **`kap-kotest`** — Test matchers and utilities
+  - `shouldSucceedWith`, `shouldSucceed`, `shouldFailWith`, `shouldFailWithMessage`
+  - `shouldBeMillis`, `shouldBeAtMostMillis`, `shouldProveParallel` (virtual-time)
+  - `shouldBeClosed/Open/HalfOpen`, `CircuitBreakerTracker` (resilience)
+  - `shouldBeRight/Left`, `shouldHaveErrors`, `shouldContainError` (Arrow)
+  - `LifecycleTracker` for resource lifecycle assertions
+- **`kap-ksp-annotations`** — Multiplatform annotation module for `@KapTypeSafe`
+- **WASM target** (`wasmJs`) for kap-core and kap-resilience
+- MkDocs Material documentation site with full API coverage
+- Blog section at `/blog/`
+- Migration guides: "Coming from Arrow" and "Coming from Raw Coroutines"
+- CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, CHANGELOG.md
+- Issue templates, PR template, GitHub Discussions
+- `kotlinx-binary-compatibility-validator` for API stability
+- 8 good first issues for contributors
+
 ### Changed
+- README rewritten — 769 lines → 176 lines with triple comparison (Raw/Arrow/KAP)
+- Logo redesigned — Pac-Man K with Kotlin eye and `.with` `.then` `.andThen` syntax
 - Renamed package `applicative` to `kap`, type `Effect` to `Kap`
 - Updated all references to new repo URL `github.com/damian-rafael-lattenero/kap`
 
@@ -76,7 +107,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Algebraic law verification (Functor, Applicative, Monad)
 - Code generation for arities 2-22 (curry, kap, zip, combine, zipV, kapV, Resource.zip)
 
-[Unreleased]: https://github.com/damian-rafael-lattenero/kap/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/damian-rafael-lattenero/kap/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/damian-rafael-lattenero/kap/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/damian-rafael-lattenero/kap/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/damian-rafael-lattenero/kap/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/damian-rafael-lattenero/kap/compare/v2.0.3...v2.1.0
