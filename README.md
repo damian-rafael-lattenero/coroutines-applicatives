@@ -28,6 +28,10 @@
   <a href="https://damian-rafael-lattenero.github.io/kap/guide/quickstart/">🚀 Quick Start</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://damian-rafael-lattenero.github.io/kap/">📖 Documentation</a>
 </h2>
 
+<p align="center">
+  <a href="https://damian-rafael-lattenero.github.io/kap/playground/">Playground</a> · <a href="https://damian-rafael-lattenero.github.io/kap/comparison/">Comparison</a> · <a href="https://damian-rafael-lattenero.github.io/kap/blog/">Blog</a> · <a href="https://damian-rafael-lattenero.github.io/kap/guide/migration-coroutines/">Migration Guide</a> · <a href="https://github.com/damian-rafael-lattenero/kap-starter">Starter Template</a>
+</p>
+
 ---
 
 ## 11 services. 5 phases. One flat chain.
@@ -196,15 +200,15 @@ Works on functions too. `@KapTypeSafe(prefix = "Dashboard")` avoids collisions. 
 
 ```kotlin
 dependencies {
-    implementation("io.github.damian-rafael-lattenero:kap-core:2.3.0")
+    implementation("io.github.damian-rafael-lattenero:kap-core:2.4.0")
 
     // Optional
-    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.3.0")  // Schedule, CircuitBreaker, Resource, timeoutRace
-    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.3.0")       // Parallel validation with error accumulation
-    implementation("io.github.damian-rafael-lattenero:kap-ktor:2.3.0")        // Ktor server plugin
-    testImplementation("io.github.damian-rafael-lattenero:kap-kotest:2.3.0")  // Test matchers
-    implementation("io.github.damian-rafael-lattenero:kap-ksp-annotations:2.3.0")  // @KapTypeSafe
-    ksp("io.github.damian-rafael-lattenero:kap-ksp:2.3.0")                         // KSP processor
+    implementation("io.github.damian-rafael-lattenero:kap-resilience:2.4.0")  // Schedule, CircuitBreaker, Resource, timeoutRace
+    implementation("io.github.damian-rafael-lattenero:kap-arrow:2.4.0")       // Parallel validation with error accumulation
+    implementation("io.github.damian-rafael-lattenero:kap-ktor:2.4.0")        // Ktor server plugin
+    testImplementation("io.github.damian-rafael-lattenero:kap-kotest:2.4.0")  // Test matchers
+    implementation("io.github.damian-rafael-lattenero:kap-ksp-annotations:2.4.0")  // @KapTypeSafe
+    ksp("io.github.damian-rafael-lattenero:kap-ksp:2.4.0")                         // KSP processor
 }
 ```
 
@@ -224,6 +228,10 @@ dependencies {
 <h2 align="center">
   <a href="https://damian-rafael-lattenero.github.io/kap/guide/quickstart/">🚀 Quick Start</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://damian-rafael-lattenero.github.io/kap/">📖 Full Documentation</a>
 </h2>
+
+<p align="center">
+  <a href="https://damian-rafael-lattenero.github.io/kap/playground/">Playground</a> · <a href="https://damian-rafael-lattenero.github.io/kap/modules/kap-ksp/">@KapTypeSafe</a> · <a href="https://github.com/damian-rafael-lattenero/kap/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">Contribute</a> · <a href="https://github.com/damian-rafael-lattenero/kap/discussions">Discussions</a>
+</p>
 
 ## License
 
