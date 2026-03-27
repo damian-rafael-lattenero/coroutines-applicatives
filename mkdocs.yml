@@ -1,6 +1,6 @@
 site_name: KAP — Kotlin Async Parallelism
 site_url: https://damian-rafael-lattenero.github.io/kap/
-site_description: Type-safe multi-service orchestration for Kotlin coroutines
+site_description: "KAP: Type-safe multi-service orchestration for Kotlin coroutines. Parallel execution with visible phases, compile-time argument order safety, and zero overhead. Alternative to Arrow parZip for multi-phase workflows."
 site_author: Damian Rafael Lattenero
 repo_url: https://github.com/damian-rafael-lattenero/kap
 repo_name: damian-rafael-lattenero/kap
@@ -57,8 +57,13 @@ nav:
     - kap-ktor: modules/kap-ktor.md
     - kap-kotest: modules/kap-kotest.md
   - Comparison: comparison.md
+  - Migration:
+    - Coming from Arrow: guide/migration-arrow.md
+    - Coming from Raw Coroutines: guide/migration-coroutines.md
 
 extra:
+  version:
+    provider: mike
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/damian-rafael-lattenero/kap

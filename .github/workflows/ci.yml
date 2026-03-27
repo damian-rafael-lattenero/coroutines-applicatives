@@ -38,6 +38,12 @@ jobs:
           - module: kap-arrow
             task: ":kap-arrow:test"
             report-path: "kap-arrow/build/reports/tests/test"
+          - module: kap-kotest
+            task: ":kap-kotest:test"
+            report-path: "kap-kotest/build/reports/tests/test"
+          - module: kap-ktor
+            task: ":kap-ktor:test"
+            report-path: "kap-ktor/build/reports/tests/test"
           - module: benchmarks
             task: ":benchmarks:test"
             report-path: "benchmarks/build/reports/tests/test"

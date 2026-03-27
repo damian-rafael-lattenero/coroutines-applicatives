@@ -2,8 +2,11 @@
 
 Ktor server integration plugin for KAP. Shared configuration, circuit breakers, tracing, and response helpers.
 
+!!! warning "Unreleased"
+    This module is available in source but **not yet published to Maven Central**. To use it now, build from source or use a JitPack dependency. Maven Central publication is planned for the next release.
+
 ```kotlin
-implementation("io.github.damian-rafael-lattenero:kap-ktor:2.3.0")
+implementation("io.github.damian-rafael-lattenero:kap-ktor:2.3.0") // coming soon
 ```
 
 **Depends on:** `kap-core`, `kap-resilience`, `ktor-server-core`.
