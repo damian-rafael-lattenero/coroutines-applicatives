@@ -19,6 +19,10 @@ kotlin {
         browser()
         nodejs()
     }
+    wasmJs {
+        browser()
+        nodejs()
+    }
     linuxX64()
 
     val xcodeAvailable = try {

@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [Js, LinuxX64]
+        target: [Js, WasmJs, LinuxX64]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
