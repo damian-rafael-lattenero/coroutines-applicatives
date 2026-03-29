@@ -779,10 +779,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
+  <a href="#the-11-service-checkout" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Performance
+        The 11-service checkout
       
     </span>
   </a>
@@ -790,10 +790,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#code-comparison-11-service-checkout" class="md-nav__link">
+  <a href="#resilient-orchestration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Code comparison: 11-service checkout
+        Resilient orchestration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parallel-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#same-type-parameter-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Same-type parameter safety
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
       
     </span>
   </a>
@@ -1041,10 +1074,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
+  <a href="#the-11-service-checkout" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Performance
+        The 11-service checkout
       
     </span>
   </a>
@@ -1052,10 +1085,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#code-comparison-11-service-checkout" class="md-nav__link">
+  <a href="#resilient-orchestration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Code comparison: 11-service checkout
+        Resilient orchestration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parallel-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#same-type-parameter-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Same-type parameter safety
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
       
     </span>
   </a>
@@ -1094,46 +1160,61 @@
 
 
 <h1 id="kap-vs-arrow-vs-raw-coroutines">KAP vs Arrow vs Raw Coroutines<a class="headerlink" href="#kap-vs-arrow-vs-raw-coroutines" title="Permanent link">&para;</a></h1>
-<p>An honest comparison. KAP doesn't replace Arrow or raw coroutines — it solves a specific problem better.</p>
+<p>KAP doesn't replace Arrow or raw coroutines — it solves <strong>multi-phase parallel orchestration</strong> better than both.</p>
+<hr />
 <h2 id="when-to-use-what">When to use what<a class="headerlink" href="#when-to-use-what" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Scenario</th>
 <th>Best tool</th>
+<th>Why</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>2-3 simple parallel calls</td>
-<td>Raw coroutines (<code>coroutineScope { async {} }</code>)</td>
+<td>Raw coroutines</td>
+<td><code>coroutineScope { async {} }</code> is enough</td>
 </tr>
 <tr>
 <td>Purely sequential code</td>
-<td>Regular <code>suspend</code> functions</td>
+<td><code>suspend</code> functions</td>
+<td>No framework needed</td>
 </tr>
 <tr>
 <td>Stream processing</td>
 <td><code>Flow</code></td>
+<td>Built for backpressure</td>
 </tr>
 <tr>
-<td>Full FP ecosystem (optics, typeclasses)</td>
+<td>Optics, typeclasses, full FP</td>
 <td>Arrow</td>
+<td>KAP doesn't cover these</td>
 </tr>
 <tr>
-<td>Multi-phase orchestration (4+ calls, dependencies)</td>
+<td><strong>4+ parallel calls with phases</strong></td>
 <td><strong>KAP</strong></td>
+<td>Flat chain, visible barriers, type-safe</td>
 </tr>
 <tr>
-<td>Parallel validation with 10+ fields</td>
-<td><strong>KAP</strong> (<code>kap-arrow</code>)</td>
-</tr>
-<tr>
-<td>Visible dependency graph in code</td>
+<td><strong>Parallel validation (10+ fields)</strong></td>
 <td><strong>KAP</strong></td>
+<td><code>zipV</code> scales to 22 (Arrow maxes at 9)</td>
+</tr>
+<tr>
+<td><strong>Resilient orchestration</strong></td>
+<td><strong>KAP</strong></td>
+<td>timeout + circuit breaker + retry in one chain</td>
+</tr>
+<tr>
+<td><strong>Same-type parameter safety</strong></td>
+<td><strong>KAP + KSP</strong></td>
+<td><code>@KapTypeSafe</code> — nobody else has this</td>
 </tr>
 </tbody>
 </table>
+<hr />
 <h2 id="feature-comparison">Feature comparison<a class="headerlink" href="#feature-comparison" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1146,151 +1227,107 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Multi-phase orchestration</strong></td>
+<td>Multi-phase orchestration</td>
 <td>Nested scopes, shuttle vars</td>
 <td>Nested <code>parZip</code> blocks</td>
-<td>Flat chain with <code>.then</code></td>
+<td><strong>Flat chain with <code>.then</code></strong></td>
 </tr>
 <tr>
-<td><strong>Compile-time arg order safety</strong></td>
+<td>Compile-time arg order</td>
 <td>No (positional)</td>
 <td>No (named lambda)</td>
 <td><strong>Typed function chain</strong></td>
 </tr>
 <tr>
-<td><strong>Partial failure tolerance</strong></td>
+<td>Same-type param safety</td>
+<td>No</td>
+<td>No</td>
+<td><strong><code>@KapTypeSafe</code> (KSP)</strong></td>
+</tr>
+<tr>
+<td>Partial failure</td>
 <td><code>supervisorScope</code> (manual)</td>
 <td>Not built-in</td>
 <td><strong><code>.settled()</code></strong></td>
 </tr>
 <tr>
-<td><strong>Timeout + parallel fallback</strong></td>
-<td>Sequential</td>
+<td>Timeout + parallel fallback</td>
+<td>Sequential (wastes time)</td>
 <td>Not built-in</td>
-<td><strong><code>timeoutRace</code></strong> (2.6x faster)</td>
+<td><strong><code>timeoutRace</code> (2.6x faster)</strong></td>
 </tr>
 <tr>
-<td><strong>Quorum (N-of-M)</strong></td>
+<td>Quorum (N-of-M)</td>
 <td>Manual <code>select</code> + counting</td>
 <td>Not built-in</td>
 <td><strong><code>raceQuorum</code></strong></td>
 </tr>
 <tr>
-<td><strong>Success-only memoization</strong></td>
+<td>Success-only memoization</td>
 <td>Manual Mutex + cache</td>
 <td>Not built-in</td>
 <td><strong><code>.memoizeOnSuccess()</code></strong></td>
 </tr>
 <tr>
-<td><strong>Parallel validation</strong></td>
+<td>Parallel validation</td>
 <td>Cancels siblings</td>
 <td><code>zipOrAccumulate</code> (max 9)</td>
-<td><code>zipV</code> <strong>(max 22)</strong></td>
+<td><strong><code>zipV</code> (max 22, parallel)</strong></td>
 </tr>
 <tr>
-<td><strong>Value-dependent phases</strong></td>
+<td>Value-dependent phases</td>
 <td>Manual variable threading</td>
 <td>Sequential <code>parZip</code></td>
-<td><code>.andThen</code></td>
+<td><strong><code>.andThen { ctx -&gt; }</code></strong></td>
 </tr>
 <tr>
-<td><strong>Retry + backoff</strong></td>
+<td>Retry + backoff</td>
 <td>Manual loop (~20 lines)</td>
 <td><code>Schedule</code></td>
-<td><code>Schedule</code> (composable)</td>
+<td><strong><code>Schedule</code> (composable in chain)</strong></td>
 </tr>
 <tr>
-<td><strong>Resource safety</strong></td>
+<td>Resource safety</td>
 <td>try/finally nesting</td>
 <td><code>Resource</code> monad</td>
-<td><code>bracket</code> / <code>Resource</code></td>
+<td><strong><code>bracket</code> / <code>Resource</code> (parallel)</strong></td>
 </tr>
 <tr>
-<td><strong>Racing</strong></td>
+<td>Racing</td>
 <td>Complex <code>select</code></td>
 <td><code>raceN</code></td>
-<td><code>raceN</code> + <code>raceEither</code></td>
+<td><strong><code>raceN</code> + <code>raceEither</code></strong></td>
 </tr>
 <tr>
-<td><strong>Bounded traversal</strong></td>
+<td>Bounded traversal</td>
 <td>Manual Semaphore</td>
 <td><code>parMap(concurrency)</code></td>
-<td><code>traverse(concurrency)</code></td>
+<td><strong><code>traverse(concurrency)</code></strong></td>
 </tr>
 <tr>
-<td><strong>Circuit breaker</strong></td>
-<td>Manual state machine</td>
+<td>Circuit breaker</td>
+<td>Manual state machine (~50 lines)</td>
 <td>Separate module</td>
-<td>Composable in chain</td>
+<td><strong>Composable in chain</strong></td>
 </tr>
 <tr>
-<td><strong>Flat multi-phase code</strong></td>
+<td>Flat multi-phase code</td>
 <td>No</td>
 <td>No</td>
 <td><strong>Yes</strong></td>
 </tr>
-</tbody>
-</table>
-<p><strong>Bold</strong> = unique to KAP or significantly better.</p>
-<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
-<p>All numbers from JMH benchmarks on JDK 21, Ubuntu 24.04:</p>
-<table>
-<thead>
 <tr>
-<th>Dimension</th>
-<th>Raw Coroutines</th>
-<th>Arrow</th>
-<th>KAP</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Framework overhead</strong> (arity 3)</td>
-<td>&lt;0.01ms</td>
-<td>0.02ms</td>
-<td>&lt;0.01ms</td>
-</tr>
-<tr>
-<td><strong>Framework overhead</strong> (arity 9)</td>
-<td>&lt;0.01ms</td>
-<td>0.03ms</td>
-<td>&lt;0.01ms</td>
-</tr>
-<tr>
-<td><strong>Simple parallel</strong> (5 x 50ms)</td>
-<td>50.27ms</td>
-<td>50.33ms</td>
-<td>50.31ms</td>
-</tr>
-<tr>
-<td><strong>Multi-phase</strong> (9 calls, 4 phases)</td>
-<td>180.85ms</td>
-<td>181.06ms</td>
-<td>180.98ms</td>
-</tr>
-<tr>
-<td><strong>Race</strong> (50ms vs 100ms)</td>
-<td>100.34ms</td>
-<td>50.51ms</td>
-<td>50.40ms</td>
-</tr>
-<tr>
-<td><strong>timeoutRace</strong> (primary wins)</td>
-<td>180.55ms</td>
-<td>--</td>
-<td><strong>30.34ms</strong></td>
-</tr>
-<tr>
-<td><strong>Max validation arity</strong></td>
-<td>--</td>
-<td>9</td>
-<td><strong>22</strong></td>
+<td>Multiplatform</td>
+<td>Yes</td>
+<td>Partial</td>
+<td><strong>JVM, JS, WASM, Native, iOS</strong></td>
 </tr>
 </tbody>
 </table>
-<p>KAP overhead is indistinguishable from raw coroutines. No reflection, no runtime codegen.</p>
-<h2 id="code-comparison-11-service-checkout">Code comparison: 11-service checkout<a class="headerlink" href="#code-comparison-11-service-checkout" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Raw Coroutines</label><label for="__tabbed_1_2">KAP</label></div>
+<hr />
+<h2 id="the-11-service-checkout">The 11-service checkout<a class="headerlink" href="#the-11-service-checkout" title="Permanent link">&para;</a></h2>
+<p>The litmus test: 11 microservice calls, 5 phases, dependencies between them.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Raw Coroutines (30 lines)</label><label for="__tabbed_1_2">Arrow (40+ lines)</label><label for="__tabbed_1_3">KAP (12 lines)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-kotlin highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kd">val</span><span class="w"> </span><span class="nv">checkout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">coroutineScope</span><span class="w"> </span><span class="p">{</span>
@@ -1298,12 +1335,12 @@
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dCart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchCart</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dPromos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchPromos</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dInventory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchInventory</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dUser</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dUser</span><span class="p">.</span><span class="na">await</span><span class="p">()</span><span class="w">          </span><span class="c1">// ← swap with cart? Same type, no error</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">cart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dCart</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">promos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dPromos</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">inventory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dInventory</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">stock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validateStock</span><span class="p">()</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">stock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validateStock</span><span class="p">()</span><span class="w">       </span><span class="c1">// Where does phase 1 end? Read every line.</span>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dShipping</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcShipping</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dTax</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcTax</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
@@ -1312,7 +1349,7 @@
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">tax</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dTax</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">discounts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dDiscounts</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">payment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reservePayment</span><span class="p">()</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">payment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reservePayment</span><span class="p">()</span><span class="w">    </span><span class="c1">// Another invisible barrier.</span>
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dConfirmation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">generateConfirmation</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="kd">val</span><span class="w"> </span><span class="nv">dEmail</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">async</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">sendEmail</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
@@ -1323,36 +1360,304 @@
 </span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">        </span><span class="n">dConfirmation</span><span class="p">.</span><span class="na">await</span><span class="p">(),</span><span class="w"> </span><span class="n">dEmail</span><span class="p">.</span><span class="na">await</span><span class="p">()</span>
 </span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">    </span><span class="p">)</span>
 </span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="p">}</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="c1">// 30 lines. Invisible phases. Silent swap bugs. Shuttle variables.</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">val</span><span class="w"> </span><span class="nv">checkout</span><span class="p">:</span><span class="w"> </span><span class="n">CheckoutResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Async</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="n">kap</span><span class="p">(</span><span class="o">::</span><span class="n">CheckoutResult</span><span class="p">)</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchUser</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">              </span><span class="c1">// ┐</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchCart</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">               </span><span class="c1">// ├─ phase 1: parallel</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchPromos</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">             </span><span class="c1">// │</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchInventory</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">          </span><span class="c1">// ┘</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">        </span><span class="p">.</span><span class="na">then</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">validateStock</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">           </span><span class="c1">// ── phase 2: barrier</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcShipping</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">            </span><span class="c1">// ┐</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcTax</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">                 </span><span class="c1">// ├─ phase 3: parallel</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcDiscounts</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">           </span><span class="c1">// ┘</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span><span class="p">.</span><span class="na">then</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">reservePayment</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">          </span><span class="c1">// ── phase 4: barrier</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">generateConfirmation</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1">// ┐ phase 5: parallel</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">sendEmail</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">              </span><span class="c1">// ┘</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">data</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nc">Phase1</span><span class="p">(</span><span class="kd">val</span><span class="w"> </span><span class="nv">user</span><span class="p">:</span><span class="w"> </span><span class="n">UserProfile</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">cart</span><span class="p">:</span><span class="w"> </span><span class="n">ShoppingCart</span><span class="p">,</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">                  </span><span class="kd">val</span><span class="w"> </span><span class="nv">promos</span><span class="p">:</span><span class="w"> </span><span class="n">PromotionBundle</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">inventory</span><span class="p">:</span><span class="w"> </span><span class="n">InventorySnapshot</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kd">data</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nc">Phase3</span><span class="p">(</span><span class="kd">val</span><span class="w"> </span><span class="nv">shipping</span><span class="p">:</span><span class="w"> </span><span class="n">ShippingQuote</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">tax</span><span class="p">:</span><span class="w"> </span><span class="n">TaxBreakdown</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">                  </span><span class="kd">val</span><span class="w"> </span><span class="nv">discounts</span><span class="p">:</span><span class="w"> </span><span class="n">DiscountSummary</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="kd">val</span><span class="w"> </span><span class="nv">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parZip</span><span class="p">(</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">fetchUser</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchCart</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchPromos</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchInventory</span><span class="p">()</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">user</span><span class="p">,</span><span class="w"> </span><span class="n">cart</span><span class="p">,</span><span class="w"> </span><span class="n">promos</span><span class="p">,</span><span class="w"> </span><span class="n">inventory</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Phase1</span><span class="p">(</span><span class="n">user</span><span class="p">,</span><span class="w"> </span><span class="n">cart</span><span class="p">,</span><span class="w"> </span><span class="n">promos</span><span class="p">,</span><span class="w"> </span><span class="n">inventory</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="kd">val</span><span class="w"> </span><span class="nv">stock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validateStock</span><span class="p">()</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="kd">val</span><span class="w"> </span><span class="nv">p3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parZip</span><span class="p">(</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">calcShipping</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcTax</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcDiscounts</span><span class="p">()</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">shipping</span><span class="p">,</span><span class="w"> </span><span class="n">tax</span><span class="p">,</span><span class="w"> </span><span class="n">discounts</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Phase3</span><span class="p">(</span><span class="n">shipping</span><span class="p">,</span><span class="w"> </span><span class="n">tax</span><span class="p">,</span><span class="w"> </span><span class="n">discounts</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="kd">val</span><span class="w"> </span><span class="nv">payment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reservePayment</span><span class="p">()</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="kd">val</span><span class="w"> </span><span class="nv">p5</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parZip</span><span class="p">(</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">generateConfirmation</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">sendEmail</span><span class="p">()</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">confirmation</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Pair</span><span class="p">(</span><span class="n">confirmation</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="kd">val</span><span class="w"> </span><span class="nv">checkout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CheckoutResult</span><span class="p">(</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="n">p1</span><span class="p">.</span><span class="na">user</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="p">.</span><span class="na">cart</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="p">.</span><span class="na">promos</span><span class="p">,</span><span class="w"> </span><span class="n">p1</span><span class="p">.</span><span class="na">inventory</span><span class="p">,</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="n">stock</span><span class="p">,</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">    </span><span class="n">p3</span><span class="p">.</span><span class="na">shipping</span><span class="p">,</span><span class="w"> </span><span class="n">p3</span><span class="p">.</span><span class="na">tax</span><span class="p">,</span><span class="w"> </span><span class="n">p3</span><span class="p">.</span><span class="na">discounts</span><span class="p">,</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">    </span><span class="n">payment</span><span class="p">,</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">    </span><span class="n">p5</span><span class="p">.</span><span class="na">first</span><span class="p">,</span><span class="w"> </span><span class="n">p5</span><span class="p">.</span><span class="na">second</span><span class="p">,</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="p">)</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="c1">// 40+ lines. Intermediate data classes. Manual assembly.</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="c1">// Phases invisible. Swap p1.user/p1.cart? Same type, no error.</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">val</span><span class="w"> </span><span class="nv">checkout</span><span class="p">:</span><span class="w"> </span><span class="n">CheckoutResult</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Async</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="n">kap</span><span class="p">(</span><span class="o">::</span><span class="n">CheckoutResult</span><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchUser</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">              </span><span class="c1">// ┐</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchCart</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">               </span><span class="c1">// ├─ phase 1: parallel</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchPromos</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">             </span><span class="c1">// │</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchInventory</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">          </span><span class="c1">// ┘</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">        </span><span class="p">.</span><span class="na">then</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">validateStock</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">           </span><span class="c1">// ── phase 2: barrier</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcShipping</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">            </span><span class="c1">// ┐</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcTax</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">                 </span><span class="c1">// ├─ phase 3: parallel</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calcDiscounts</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">           </span><span class="c1">// ┘</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">        </span><span class="p">.</span><span class="na">then</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">reservePayment</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">          </span><span class="c1">// ── phase 4: barrier</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">generateConfirmation</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1">// ┐ phase 5: parallel</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">sendEmail</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">              </span><span class="c1">// ┘</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1">// 12 lines. Phases explicit. Swap any .with → compile error.</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c1">// No shuttle variables. No intermediate data classes.</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
-<p>30 lines vs 12 lines. Invisible phases vs explicit phases. Silent bugs vs compile-time safety.</p>
+<hr />
+<h2 id="resilient-orchestration">Resilient orchestration<a class="headerlink" href="#resilient-orchestration" title="Permanent link">&para;</a></h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Raw Coroutines</label><label for="__tabbed_2_2">Arrow</label><label for="__tabbed_2_3">KAP</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// Manual: timeout + retry + circuit breaker + fallback</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kd">var</span><span class="w"> </span><span class="nv">failures</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kd">val</span><span class="w"> </span><span class="nv">maxFailures</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kd">var</span><span class="w"> </span><span class="nv">circuitOpen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="kd">suspend</span><span class="w"> </span><span class="kd">fun</span><span class="w"> </span><span class="nf">fetchWithResilience</span><span class="p">():</span><span class="w"> </span><span class="kt">String</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">circuitOpen</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;cached-user&quot;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nv">lastError</span><span class="p">:</span><span class="w"> </span><span class="n">Exception? </span><span class="o">=</span><span class="w"> </span><span class="kc">null</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="n">repeat</span><span class="p">(</span><span class="m">3</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">attempt</span><span class="w"> </span><span class="o">-&gt;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">withTimeout</span><span class="p">(</span><span class="m">500</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchUser</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">:</span><span class="w"> </span><span class="n">Exception</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">CancellationException</span><span class="p">)</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="n">e</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">            </span><span class="n">lastError</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">            </span><span class="n">failures</span><span class="o">++</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">failures</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">maxFailures</span><span class="p">)</span><span class="w"> </span><span class="n">circuitOpen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">            </span><span class="n">delay</span><span class="p">(</span><span class="m">50L</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="p">))</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">        </span><span class="p">}</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;cached-user&quot;</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="p">}</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="c1">// 20+ lines. Manual state. No composition. Fragile.</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// Arrow has Schedule but no CircuitBreaker or timeoutRace</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kd">val</span><span class="w"> </span><span class="nv">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Schedule</span><span class="p">.</span><span class="na">recurs</span><span class="o">&lt;</span><span class="n">Throwable</span><span class="o">&gt;</span><span class="p">(</span><span class="m">3</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p">.</span><span class="na">and</span><span class="p">(</span><span class="n">Schedule</span><span class="p">.</span><span class="na">exponential</span><span class="p">(</span><span class="m">50.</span><span class="n">milliseconds</span><span class="p">))</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">.</span><span class="na">retry</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchUser</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1">// No circuit breaker. No parallel timeout fallback.</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1">// No composable chain with .recover at the end.</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">val</span><span class="w"> </span><span class="nv">breaker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CircuitBreaker</span><span class="p">(</span><span class="n">maxFailures</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span><span class="p">,</span><span class="w"> </span><span class="n">resetTimeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">30.</span><span class="n">seconds</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kd">val</span><span class="w"> </span><span class="nv">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Async</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">Kap</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchUser</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="p">.</span><span class="na">timeout</span><span class="p">(</span><span class="m">500.</span><span class="n">milliseconds</span><span class="p">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">        </span><span class="p">.</span><span class="na">withCircuitBreaker</span><span class="p">(</span><span class="n">breaker</span><span class="p">)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="p">.</span><span class="na">retry</span><span class="p">(</span><span class="n">Schedule</span><span class="p">.</span><span class="na">times</span><span class="o">&lt;</span><span class="n">Throwable</span><span class="o">&gt;</span><span class="p">(</span><span class="m">3</span><span class="p">)</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">            </span><span class="n">and</span><span class="w"> </span><span class="n">Schedule</span><span class="p">.</span><span class="na">exponential</span><span class="p">(</span><span class="m">50.</span><span class="n">milliseconds</span><span class="p">).</span><span class="na">jittered</span><span class="p">())</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">        </span><span class="p">.</span><span class="na">recover</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;cached-user&quot;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">}</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1">// 8 lines. Composable. timeout → breaker → retry → fallback.</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<hr />
+<h2 id="parallel-validation">Parallel validation<a class="headerlink" href="#parallel-validation" title="Permanent link">&para;</a></h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Raw Coroutines</label><label for="__tabbed_3_2">Arrow</label><label for="__tabbed_3_3">KAP</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// Sequential: stops at first error. 5 invalid fields = 5 round trips.</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kd">val</span><span class="w"> </span><span class="nv">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validateName</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">)</span><span class="w">       </span><span class="c1">// fails → stop</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kd">val</span><span class="w"> </span><span class="nv">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validateEmail</span><span class="p">(</span><span class="s">&quot;bad&quot;</span><span class="p">)</span><span class="w">   </span><span class="c1">// never reached</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="kd">val</span><span class="w"> </span><span class="nv">age</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">validateAge</span><span class="p">(</span><span class="m">10</span><span class="p">)</span><span class="w">          </span><span class="c1">// never reached</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1">// User must fix and resubmit for each error. Terrible UX.</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// Parallel error accumulation, but max 9 validators</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kd">val</span><span class="w"> </span><span class="nv">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Either</span><span class="p">.</span><span class="na">zipOrAccumulate</span><span class="p">(</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">validateName</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">validateEmail</span><span class="p">(</span><span class="s">&quot;bad&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">validateAge</span><span class="p">(</span><span class="m">10</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">checkUsername</span><span class="p">(</span><span class="s">&quot;al&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">User</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1">// All errors at once. But: max 9 args, not parallel execution.</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// Parallel execution + error accumulation + scales to 22</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kd">val</span><span class="w"> </span><span class="nv">result</span><span class="p">:</span><span class="w"> </span><span class="n">Either</span><span class="o">&lt;</span><span class="n">NonEmptyList</span><span class="o">&lt;</span><span class="n">RegError</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">User</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Async</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">zipV</span><span class="p">(</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="n">validateName</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="n">validateEmail</span><span class="p">(</span><span class="s">&quot;bad&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="n">validateAge</span><span class="p">(</span><span class="m">10</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="n">checkUsername</span><span class="p">(</span><span class="s">&quot;al&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">User</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">}</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c1">// 4 errors in one response. All validators ran in parallel.</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="c1">// Scales to 22 validators. Arrow maxes at 9.</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<hr />
+<h2 id="same-type-parameter-safety">Same-type parameter safety<a class="headerlink" href="#same-type-parameter-safety" title="Permanent link">&para;</a></h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:3"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><input id="__tabbed_4_3" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Raw Coroutines</label><label for="__tabbed_4_2">Arrow</label><label for="__tabbed_4_3">KAP + @KapTypeSafe</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kd">data</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nc">Booking</span><span class="p">(</span><span class="kd">val</span><span class="w"> </span><span class="nv">guestName</span><span class="p">:</span><span class="w"> </span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">hotelName</span><span class="p">:</span><span class="w"> </span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">nights</span><span class="p">:</span><span class="w"> </span><span class="kt">Int</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">guests</span><span class="p">:</span><span class="w"> </span><span class="kt">Int</span><span class="p">)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1">// Swap guestName/hotelName? Both String. No error.</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1">// Swap nights/guests? Both Int. No error.</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">Booking</span><span class="p">(</span><span class="n">dGuest</span><span class="p">.</span><span class="na">await</span><span class="p">(),</span><span class="w"> </span><span class="n">dHotel</span><span class="p">.</span><span class="na">await</span><span class="p">(),</span><span class="w"> </span><span class="n">dNights</span><span class="p">.</span><span class="na">await</span><span class="p">(),</span><span class="w"> </span><span class="n">dGuests</span><span class="p">.</span><span class="na">await</span><span class="p">())</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1">// Same problem. parZip with positional lambdas.</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">parZip</span><span class="p">({</span><span class="w"> </span><span class="n">fetchGuest</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchHotel</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchNights</span><span class="p">()</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchGuests</span><span class="p">()</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="n">guest</span><span class="p">,</span><span class="w"> </span><span class="n">hotel</span><span class="p">,</span><span class="w"> </span><span class="n">nights</span><span class="p">,</span><span class="w"> </span><span class="n">guests</span><span class="w"> </span><span class="o">-&gt;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="n">Booking</span><span class="p">(</span><span class="n">guest</span><span class="p">,</span><span class="w"> </span><span class="n">hotel</span><span class="p">,</span><span class="w"> </span><span class="n">nights</span><span class="p">,</span><span class="w"> </span><span class="n">guests</span><span class="p">)</span><span class="w">  </span><span class="c1">// swap guest/hotel? No error.</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">}</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nd">@KapTypeSafe</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kd">data</span><span class="w"> </span><span class="kd">class</span><span class="w"> </span><span class="nc">Booking</span><span class="p">(</span><span class="kd">val</span><span class="w"> </span><span class="nv">guestName</span><span class="p">:</span><span class="w"> </span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">hotelName</span><span class="p">:</span><span class="w"> </span><span class="kt">String</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">nights</span><span class="p">:</span><span class="w"> </span><span class="kt">Int</span><span class="p">,</span><span class="w"> </span><span class="kd">val</span><span class="w"> </span><span class="nv">guests</span><span class="p">:</span><span class="w"> </span><span class="kt">Int</span><span class="p">)</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1">// KSP generates distinct types: BookingGuestName, BookingHotelName, BookingNights, BookingGuests</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">kapSafe</span><span class="p">(</span><span class="o">::</span><span class="n">Booking</span><span class="p">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchGuest</span><span class="p">().</span><span class="na">toGuestName</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">     </span><span class="c1">// BookingGuestName</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchHotel</span><span class="p">().</span><span class="na">toHotelName</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">     </span><span class="c1">// BookingHotelName — swap? COMPILE ERROR</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchNights</span><span class="p">().</span><span class="na">toNights</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">       </span><span class="c1">// BookingNights</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="p">.</span><span class="na">with</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fetchGuests</span><span class="p">().</span><span class="na">toGuests</span><span class="p">()</span><span class="w"> </span><span class="p">}</span><span class="w">       </span><span class="c1">// BookingGuests — swap with nights? COMPILE ERROR</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<hr />
+<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
+<p>All numbers from <strong>119 JMH benchmarks</strong> on JDK 21, Ubuntu 24.04. <a href="https://damian-rafael-lattenero.github.io/kap/benchmarks/">Live dashboard</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Raw Coroutines</th>
+<th>Arrow</th>
+<th>KAP</th>
+<th>Winner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Framework overhead</strong> (arity 3)</td>
+<td>&lt;0.01ms</td>
+<td>0.02ms</td>
+<td>&lt;0.01ms</td>
+<td>Tie (Raw/KAP)</td>
+</tr>
+<tr>
+<td><strong>Framework overhead</strong> (arity 9)</td>
+<td>&lt;0.01ms</td>
+<td>0.03ms</td>
+<td>&lt;0.01ms</td>
+<td>Tie (Raw/KAP)</td>
+</tr>
+<tr>
+<td><strong>Simple parallel</strong> (5 x 50ms)</td>
+<td>50.27ms</td>
+<td>50.33ms</td>
+<td>50.31ms</td>
+<td>Tie</td>
+</tr>
+<tr>
+<td><strong>Multi-phase</strong> (9 calls, 4 phases)</td>
+<td>180.85ms</td>
+<td>181.06ms</td>
+<td>180.98ms</td>
+<td>Tie</td>
+</tr>
+<tr>
+<td><strong>Race</strong> (50ms vs 100ms)</td>
+<td>100.34ms</td>
+<td>50.51ms</td>
+<td>50.40ms</td>
+<td>Tie (Arrow/KAP)</td>
+</tr>
+<tr>
+<td><strong>timeoutRace</strong> (primary wins)</td>
+<td>180.55ms</td>
+<td>—</td>
+<td><strong>30.34ms</strong></td>
+<td><strong>KAP (6x)</strong></td>
+</tr>
+<tr>
+<td><strong>Max validation arity</strong></td>
+<td>—</td>
+<td>9</td>
+<td><strong>22</strong></td>
+<td><strong>KAP</strong></td>
+</tr>
+</tbody>
+</table>
+<p>KAP overhead is <strong>indistinguishable from raw coroutines</strong>. Zero reflection, zero runtime codegen.</p>
+<hr />
 <h2 id="kap-arrow-together">KAP + Arrow together<a class="headerlink" href="#kap-arrow-together" title="Permanent link">&para;</a></h2>
-<p>KAP doesn't compete with Arrow — they complement each other. The <code>kap-arrow</code> module bridges both:</p>
-<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">dependencies</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.damian-rafael-lattenero:kap-core:2.4.0&quot;</span><span class="p">)</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.damian-rafael-lattenero:kap-arrow:2.4.0&quot;</span><span class="p">)</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+<p>KAP doesn't compete with Arrow — the <code>kap-arrow</code> module <strong>uses</strong> Arrow's types:</p>
+<div class="language-kotlin highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">dependencies</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.damian-rafael-lattenero:kap-core:2.4.0&quot;</span><span class="p">)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="n">implementation</span><span class="p">(</span><span class="s">&quot;io.github.damian-rafael-lattenero:kap-arrow:2.4.0&quot;</span><span class="p">)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Use Arrow's <code>Either</code>, <code>NonEmptyList</code>, and type system. Use KAP's orchestration, phases, and <code>zipV</code> for higher-arity validation.</p>
+<p>Use Arrow for <code>Either</code>, <code>NonEmptyList</code>, optics, typeclasses. Use KAP for orchestration, phases, and <code>zipV</code> where Arrow's arity limit (9) isn't enough.</p>
+<table>
+<thead>
+<tr>
+<th>You need...</th>
+<th>Use...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parallel orchestration with phases</td>
+<td>KAP <code>kap-core</code></td>
+</tr>
+<tr>
+<td>Parallel validation with error accumulation</td>
+<td>KAP <code>kap-arrow</code> (uses Arrow's Either)</td>
+</tr>
+<tr>
+<td>Optics / lenses / prisms</td>
+<td>Arrow <code>arrow-optics</code></td>
+</tr>
+<tr>
+<td>Typed errors with <code>Raise</code></td>
+<td>Arrow <code>arrow-core</code></td>
+</tr>
+<tr>
+<td>Resilience (retry, circuit breaker, bracket)</td>
+<td>KAP <code>kap-resilience</code></td>
+</tr>
+<tr>
+<td>Ktor server integration</td>
+<td>KAP <code>kap-ktor</code></td>
+</tr>
+<tr>
+<td>Same-type compile safety</td>
+<td>KAP <code>kap-ksp</code></td>
+</tr>
+</tbody>
+</table>
 
 
 
