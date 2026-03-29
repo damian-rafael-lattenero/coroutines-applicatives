@@ -492,6 +492,8 @@ val lazy: Kap<String> = Kap.defer { Kap { expensiveSetup() } } // lazy construct
 
 ## Racing
 
+### `raceN(c1, c2, ..., cN)` — First to succeed wins, rest cancelled
+
 === "Raw Coroutines"
 
     ```kotlin
