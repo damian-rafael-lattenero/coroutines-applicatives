@@ -36,24 +36,28 @@ Or add the dependency manually:
 
 ## 2. Write your first parallel call
 
+Copy, paste, run:
+
 ```kotlin
 import kap.*
+import kotlinx.coroutines.delay
 
 data class Dashboard(val user: String, val cart: String, val promos: String)
 
-suspend fun main() {
-    val result = Async {
-        kap(::Dashboard)
-            .with { fetchUser() }     // ┐ all three in parallel
-            .with { fetchCart() }      // │ total time = max(individual)
-            .with { fetchPromos() }    // ┘ not sum
-    }
-    println(result) // Dashboard(user=Alice, cart=3 items, promos=SAVE20)
-}
+suspend fun fetchUser(): String { delay(50); return "Alice" }
+suspend fun fetchCart(): String { delay(40); return "3 items" }
+suspend fun fetchPromos(): String { delay(30); return "SAVE20" }
 
-suspend fun fetchUser(): String { /* ... */ return "Alice" }
-suspend fun fetchCart(): String { /* ... */ return "3 items" }
-suspend fun fetchPromos(): String { /* ... */ return "SAVE20" }
+suspend fun main() {
+    val result: Dashboard = Async {
+        kap(::Dashboard)
+            .with { fetchUser() }     // ┐ all three start at t=0
+            .with { fetchCart() }      // │ total time = max(50, 40, 30) = 50ms
+            .with { fetchPromos() }    // ┘ not 120ms sequential
+    }
+    println(result)
+    // Dashboard(user=Alice, cart=3 items, promos=SAVE20)
+}
 ```
 
 That's it. Three calls run in parallel, results are type-checked into your data class.
@@ -63,13 +67,37 @@ That's it. Three calls run in parallel, results are type-checked into your data 
 Real-world flows have dependencies. Use `.then` for barriers:
 
 ```kotlin
-val checkout = Async {
-    kap(::CheckoutResult)
-        .with { fetchUser() }           // ┐ phase 1: parallel
-        .with { fetchCart() }            // ┘
-        .then { validateStock() }        // ── phase 2: waits for phase 1
-        .with { calcShipping() }         // ┐ phase 3: parallel
-        .with { calcTax() }              // ┘
+import kap.*
+import kotlinx.coroutines.delay
+
+data class User(val name: String)
+data class Cart(val items: Int)
+data class StockCheck(val confirmed: Boolean)
+data class ShippingQuote(val amount: Double)
+data class TaxBreakdown(val rate: Double)
+data class CheckoutResult(
+    val user: User, val cart: Cart, val stock: StockCheck,
+    val shipping: ShippingQuote, val tax: TaxBreakdown,
+)
+
+suspend fun fetchUser(): User { delay(50); return User("Alice") }
+suspend fun fetchCart(): Cart { delay(40); return Cart(3) }
+suspend fun validateStock(): StockCheck { delay(20); return StockCheck(true) }
+suspend fun calcShipping(): ShippingQuote { delay(30); return ShippingQuote(5.99) }
+suspend fun calcTax(): TaxBreakdown { delay(20); return TaxBreakdown(0.08) }
+
+suspend fun main() {
+    val checkout: CheckoutResult = Async {
+        kap(::CheckoutResult)
+            .with { fetchUser() }           // ┐ phase 1: parallel
+            .with { fetchCart() }            // ┘
+            .then { validateStock() }        // ── phase 2: waits for phase 1
+            .with { calcShipping() }         // ┐ phase 3: parallel
+            .with { calcTax() }              // ┘
+    }
+    println(checkout)
+    // CheckoutResult(user=User(name=Alice), cart=Cart(items=3), stock=StockCheck(confirmed=true),
+    //   shipping=ShippingQuote(amount=5.99), tax=TaxBreakdown(rate=0.08))
 }
 ```
 
@@ -80,15 +108,32 @@ val checkout = Async {
 When phase 2 needs phase 1's result, use `.andThen`:
 
 ```kotlin
-val dashboard = Async {
-    kap(::UserContext)
-        .with { fetchProfile(userId) }      // ┐ phase 1
-        .with { fetchPreferences(userId) }   // ┘
-        .andThen { ctx ->                    // ── barrier: ctx available
-            kap(::EnrichedDashboard)
-                .with { fetchRecommendations(ctx.profile) }  // ┐ phase 2
-                .with { fetchPromotions(ctx.tier) }           // ┘
-        }
+import kap.*
+import kotlinx.coroutines.delay
+
+data class UserContext(val profile: String, val prefs: String)
+data class EnrichedDashboard(val recs: String, val promos: String)
+
+suspend fun fetchProfile(userId: String): String { delay(50); return "profile-$userId" }
+suspend fun fetchPreferences(userId: String): String { delay(30); return "dark-mode" }
+suspend fun fetchRecommendations(profile: String): String { delay(40); return "recs-for-$profile" }
+suspend fun fetchPromotions(prefs: String): String { delay(30); return "promos-for-$prefs" }
+
+suspend fun main() {
+    val userId = "user-42"
+
+    val dashboard: EnrichedDashboard = Async {
+        kap(::UserContext)
+            .with { fetchProfile(userId) }      // ┐ phase 1: parallel
+            .with { fetchPreferences(userId) }   // ┘
+            .andThen { ctx ->                    // ── barrier: ctx available
+                kap(::EnrichedDashboard)
+                    .with { fetchRecommendations(ctx.profile) }  // ┐ phase 2: parallel
+                    .with { fetchPromotions(ctx.prefs) }          // ┘ uses ctx from phase 1
+            }
+    }
+    println(dashboard)
+    // EnrichedDashboard(recs=recs-for-profile-user-42, promos=promos-for-dark-mode)
 }
 ```
 
@@ -103,6 +148,7 @@ cd kap
 ## What's next?
 
 - [Core Concepts](core-concepts.md) — Understand the `with`/`then`/`andThen` model in depth
+- [Cookbook](../playground.md) — 12 complete runnable examples
 - [Parallel API Aggregation](parallel-aggregation.md) — Build a real BFF endpoint
 - [Modules](../modules/kap-core.md) — Full API reference per module
 - [Comparison](../comparison.md) — KAP vs Arrow vs raw coroutines
